@@ -347,3 +347,11 @@ if 'file' in HANDLERS:
         'filename': 'log/main.log',
         'formatter': 'verbose'
     }
+
+
+# Instances ###################################################################
+
+# By default, instances use local mysql and mongo databases. Modify these
+# settings to connect to external databases.
+INSTANCE_DATABASE_URL = env('INSTANCE_DATABASE_URL', default=None)
+INSTANCE_MONGO_URL = env('INSTANCE_MONGO_URL', default=None)

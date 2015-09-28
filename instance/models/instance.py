@@ -24,8 +24,10 @@ Instance app models - Instance
 
 import logging
 import os
+import yaml
 
 from functools import partial
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.validators import RegexValidator
@@ -495,7 +497,14 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
     s3_secret_access_key = models.CharField(max_length=50, blank=True)
     s3_bucket_name = models.CharField(max_length=50, blank=True)
 
-    ANSIBLE_SETTINGS = AnsibleInstanceMixin.ANSIBLE_SETTINGS + ['ansible_s3_settings']
+    database_url = models.CharField(max_length=255, blank=True, default=settings.INSTANCE_DATABASE_URL or '')
+    mongo_url = models.CharField(max_length=255, blank=True, default=settings.INSTANCE_MONGO_URL or '')
+
+    ANSIBLE_SETTINGS = AnsibleInstanceMixin.ANSIBLE_SETTINGS + [
+        'ansible_s3_settings',
+        'ansible_database_settings',
+        'ansible_mongo_settings',
+    ]
 
     class Meta:
         verbose_name = 'Open edX Instance'
@@ -525,6 +534,42 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
 
         template = loader.get_template('instance/ansible/s3.yml')
         return template.render({'instance': self})
+
+    @property
+    def ansible_database_settings(self):
+        """
+        Database settings for this instance
+        """
+        if not self.database_url:
+            return ''
+
+        db = urlparse(self.database_url)
+        settings = {
+            'EDXAPP_MYSQL_USER': db.username,
+            'EDXAPP_MYSQL_PASSWORD': db.password,
+            'EDXAPP_MYSQL_HOST': db.hostname,
+            'EDXAPP_MYSQL_PORT': db.port,
+            'EDXAPP_MYSQL_DB_NAME': db.path.lstrip('/'),
+        }
+        return yaml.dump({key: value for key, value in settings.items() if value})
+
+    @property
+    def ansible_mongo_settings(self):
+        """
+        Mongo settings for this instance
+        """
+        if not self.mongo_url:
+            return ''
+
+        mongo = urlparse(self.mongo_url)
+        settings = {
+            'EDXAPP_MONGO_USER': mongo.username,
+            'EDXAPP_MONGO_PASSWORD': mongo.password,
+            'EDXAPP_MONGO_HOSTS': [mongo.hostname] if mongo.hostname else None,
+            'EDXAPP_MONGO_PORT': mongo.port,
+            'EDXAPP_MONGO_DB_NAME': mongo.path.lstrip('/'),
+        }
+        return yaml.dump({key: value for key, value in settings.items() if value})
 
     @property
     def studio_sub_domain(self):
