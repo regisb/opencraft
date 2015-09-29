@@ -544,14 +544,14 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
             return ''
 
         db = urlparse(self.database_url)
-        settings = {
+        ansible_settings = {
             'EDXAPP_MYSQL_USER': db.username,
             'EDXAPP_MYSQL_PASSWORD': db.password,
             'EDXAPP_MYSQL_HOST': db.hostname,
             'EDXAPP_MYSQL_PORT': db.port,
             'EDXAPP_MYSQL_DB_NAME': db.path.lstrip('/'),
         }
-        return yaml.dump({key: value for key, value in settings.items() if value})
+        return yaml.dump({key: value for key, value in ansible_settings.items() if value})
 
     @property
     def ansible_mongo_settings(self):
@@ -562,14 +562,14 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
             return ''
 
         mongo = urlparse(self.mongo_url)
-        settings = {
+        ansible_settings = {
             'EDXAPP_MONGO_USER': mongo.username,
             'EDXAPP_MONGO_PASSWORD': mongo.password,
             'EDXAPP_MONGO_HOSTS': [mongo.hostname] if mongo.hostname else None,
             'EDXAPP_MONGO_PORT': mongo.port,
             'EDXAPP_MONGO_DB_NAME': mongo.path.lstrip('/'),
         }
-        return yaml.dump({key: value for key, value in settings.items() if value})
+        return yaml.dump({key: value for key, value in ansible_settings.items() if value})
 
     @property
     def studio_sub_domain(self):
