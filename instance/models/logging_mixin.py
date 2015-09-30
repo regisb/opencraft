@@ -71,11 +71,11 @@ class LoggerInstanceMixin(LoggerMixin):
         abstract = True
 
     @property
-    def log_text(self):
+    def log_entries(self):
         """
         Combines the instance and server log outputs in chronological order
         Currently only supports one non-terminated server at a time
-        Returned as a text string
+        Returned as a list of strings
         """
         current_server = self.active_server_set.get()
         server_logentry_set = current_server.logentry_set.filter(level__in=PUBLISHED_LOG_LEVEL_SET)\
@@ -88,24 +88,24 @@ class LoggerInstanceMixin(LoggerMixin):
         next_server_logentry = partial(next, server_logentry_set, None)
         next_instance_logentry = partial(next, instance_logentry_set, None)
 
-        log_text = ''
+        log = []
         instance_logentry = next_instance_logentry()
         server_logentry = next_server_logentry()
 
         while instance_logentry is not None and server_logentry is not None:
             if server_logentry.created < instance_logentry.created:
-                log_text += '{}\n'.format(server_logentry)
+                log.append('{}'.format(server_logentry))
                 server_logentry = next_server_logentry()
             else:
-                log_text += '{}\n'.format(instance_logentry)
+                log.append('{}'.format(instance_logentry))
                 instance_logentry = next_instance_logentry()
 
         while instance_logentry is not None:
-            log_text += '{}\n'.format(instance_logentry)
+            log.append('{}'.format(instance_logentry))
             instance_logentry = next_instance_logentry()
 
         while server_logentry is not None:
-            log_text += '{}\n'.format(server_logentry)
+            log.append('{}'.format(server_logentry))
             server_logentry = next_server_logentry()
 
-        return log_text
+        return log

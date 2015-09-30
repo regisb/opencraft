@@ -11,6 +11,17 @@
     .row {
         max-width: none;
     }
+    ul.side-nav {
+        li {
+            a {
+                display: inline-block;
+            }
+            div.status-icon {
+                float: right;
+                margin-top: 8px;
+            }
+        }
+    }
 
     .instance-description {
         margin-bottom: 0px;
@@ -22,9 +33,19 @@
         margin-right: 10px;
     }
 
+    .status-error, .status-success {
+        margin-top: 12px;
+    }
+
     .configuration,
-    .instance-log {
+    .instance-log,
+    .error-log {
         font-size: 0.8em;
+        white-space: normal;
+    }
+    .error-log {
+        background-color: #fcc;
+        color: #800;
     }
 }
 

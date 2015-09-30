@@ -38,9 +38,9 @@ class LoggerInstanceMixinTestCase(TestCase):
     """
     Test cases for LoggerInstanceMixin
     """
-    def test_log_text(self):
+    def test_log(self):
         """
-        Check `log_text` output for combination of instance & server logs
+        Check `log` output for combination of instance & server logs
         """
         instance = OpenEdXInstanceFactory()
         server = OpenStackServerFactory(instance=instance)
@@ -66,10 +66,10 @@ class LoggerInstanceMixinTestCase(TestCase):
         with freeze_time("2015-08-05 18:07:06"):
             server.log('exception', 'Line #7, on server (exception)')
 
-        self.assertEqual(instance.log_text, (
-            "2015-08-05 18:07:00 [info] Line #1, on instance\n"
-            "2015-08-05 18:07:01 [info] Line #2, on server\n"
-            "2015-08-05 18:07:03 [info] Line #4, on instance\n"
-            "2015-08-05 18:07:04 [warn] Line #5, on instance (warn)\n"
-            "2015-08-05 18:07:05 [info] Line #6, on server\n"
-            "2015-08-05 18:07:06 [exception] Line #7, on server (exception)\n"))
+        self.assertEqual(instance.log_entries, [
+            "2015-08-05 18:07:00 [info] Line #1, on instance",
+            "2015-08-05 18:07:01 [info] Line #2, on server",
+            "2015-08-05 18:07:03 [info] Line #4, on instance",
+            "2015-08-05 18:07:04 [warn] Line #5, on instance (warn)",
+            "2015-08-05 18:07:05 [info] Line #6, on server",
+            "2015-08-05 18:07:06 [exception] Line #7, on server (exception)"])

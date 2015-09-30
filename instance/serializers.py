@@ -73,7 +73,7 @@ class OpenEdXInstanceSerializer(serializers.ModelSerializer):
             'github_branch_url',
             'github_pr_number',
             'github_pr_url',
-            'log_text',
+            'log_entries',
             'github_organization_name',
             'modified',
             'name',

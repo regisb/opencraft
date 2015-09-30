@@ -394,6 +394,7 @@ class OpenEdXInstanceTestCase(TestCase):
         """
         Run provisioning sequence
         """
+        mock_run_playbook.return_value = (['log'], 0)
         mock_openstack_create_server.return_value.id = 'test-run-provisioning-server'
         os_server_manager.add_fixture('test-run-provisioning-server', 'openstack/api_server_2_active.json')
 
@@ -417,6 +418,7 @@ class OpenEdXInstanceTestCase(TestCase):
         """
         Run provisioning sequence, with status jumping from 'started' to 'booted' (no 'active')
         """
+        mock_run_playbook.return_value = (['log'], 0)
         instance = OpenEdXInstanceFactory(sub_domain='run.provisioning.noactive')
         status_queue = [
             OpenStackServer.STARTED,

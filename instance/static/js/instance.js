@@ -122,11 +122,32 @@ app.controller("Index", ['$scope', 'Restangular', 'OpenCraftAPI', '$q',
             } else if(message.data.type === 'instance_log') {
                 if($scope.selected.instance && $scope.selected.instance.id === message.data.instance_id) {
                     $scope.$apply(function(){
-                        $scope.selected.instance.log_text += message.data.log_entry + '\n';
+                        $scope.selected.instance.log_entries.push(message.data.log_entry);
                     });
                 }
             }
         });
+
+        $scope.error_log = function() {
+            if (!$scope.selected.instance) {
+                return;
+            }
+            var log_entries = $scope.selected.instance.log_entries;
+            var error = [];
+            var counting = false;
+            for (var i = log_entries.length; i > 0; i--) {
+                if (!/\[error\]/.test(log_entries[i - 1])) {
+                    if (counting) {
+                        return error.reverse();
+                    }
+                } else {
+                    error.push(log_entries[i - 1]);
+                    counting = true;
+                }
+            }
+            return error.reverse();
+        };
+
         swampdragon.ready(function() {
             swampdragon.subscribe('notifier', 'notification', null);
             swampdragon.subscribe('notifier', 'log', null);

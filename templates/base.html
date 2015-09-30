@@ -18,6 +18,11 @@
     {% endcompress %}
     {% endblock foundation_css %}
 
+    {# Fontawesome #}
+    {% compress css %}
+    <link rel="stylesheet" href='{% static "css/font-awesome.min.css" %}'/>
+    {% endcompress %}
+
     {# Custom CSS #}
     {% block css %}{% endblock css %}
 

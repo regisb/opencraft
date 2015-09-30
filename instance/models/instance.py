@@ -22,10 +22,11 @@ Instance app models - Instance
 
 # Imports #####################################################################
 
+import itertools
 import os
 
 from django.conf import settings
-from django.core.validators import RegexValidator
+from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from django.template import loader
 from django.utils import timezone
@@ -77,6 +78,7 @@ class Instance(ValidateModelMixin, TimeStampedModel):
     ACTIVE = 'active'
     BOOTED = 'booted'
     PROVISIONED = 'provisioned'
+    PROVISIONING_FAILURE = 'provisioning_failure'
     REBOOTING = 'rebooting'
     READY = 'ready'
     LIVE = 'live'
@@ -337,6 +339,10 @@ class AnsibleInstanceMixin(models.Model):
     ansible_playbook_name = models.CharField(max_length=50, default='edx_sandbox')
     ansible_extra_settings = models.TextField(blank=True)
 
+    attempts = models.SmallIntegerField(default=3, validators=[
+        MinValueValidator(1),
+    ])
+
     # List of attributes to include in the settings output
     ANSIBLE_SETTINGS = ['ansible_extra_settings']
 
@@ -380,33 +386,52 @@ class AnsibleInstanceMixin(models.Model):
         """
         Run a playbook against the instance active servers
         """
-        with open_repository(self.ansible_source_repo_url,
-                             ref=self.configuration_version) as configuration_repo:
-            playbook_path = os.path.join(configuration_repo.working_dir, 'playbooks')
-            requirements_path = os.path.join(configuration_repo.working_dir, 'requirements.txt')
+        attempt = 0
+        while attempt < self.attempts:
+            with open_repository(self.ansible_source_repo_url,
+                                 ref=self.configuration_version) as configuration_repo:
+                playbook_path = os.path.join(configuration_repo.working_dir,
+                                             'playbooks')
+                requirements_path = os.path.join(configuration_repo.working_dir,
+                                                 'requirements.txt')
 
-            self.log('info', 'Running playbook "{path}/{name}" for instance {instance}...'.format(
-                path=playbook_path,
-                name=playbook_name,
-                instance=self,
-            ))
+                log = ('Running playbook "{path}/{name}" for instance {instance}, '
+                       'attempt {attempt} of {attempts}:').format(
+                           path=playbook_path,
+                           name=self.ansible_playbook_name,
+                           instance=self,
+                           attempts=self.attempts,
+                           attempt=attempt + 1)
+                self.log('info', log)
 
-            log_lines = []
-            with ansible.run_playbook(
-                requirements_path,
-                self.inventory_str,
-                self.vars_str,
-                playbook_path,
-                self.ansible_playbook_filename,
-                username=settings.OPENSTACK_SANDBOX_SSH_USERNAME,
-            ) as processus:
-                for line in processus.stdout:
-                    line = line.decode('utf-8').rstrip()
-                    self.log('info', line)
-                    log_lines.append([line.rstrip()])
+                log_lines = []
+                with ansible.run_playbook(
+                    requirements_path,
+                    self.inventory_str,
+                    self.vars_str,
+                    playbook_path,
+                    self.ansible_playbook_filename,
+                    username=settings.OPENSTACK_SANDBOX_SSH_USERNAME,
+                ) as processus:
+                    stdout_lines = [('info', l) for l in processus.stdout]
+                    stderr_lines = [('error', l) for l in processus.stderr]
+                    for level, line in itertools.chain(stdout_lines,
+                                                       stderr_lines):
+                        line = line.decode('utf-8').rstrip()
+                        self.log(level, line)
+                        log_lines.append([level + ':' + line])
+                    processus.wait()
+                    if processus.returncode != 0:
+                        self.log('error',
+                                 'Playbook failed for instance {}'.format(self))
+                        attempt += 1
+                        continue
+                    else:
+                        break
 
-        self.log('info', 'Playbook run completed for instance {}'.format(self))
-        return log_lines
+        if processus.returncode == 0:
+            self.log('info', 'Playbook completed for instance {}'.format(self))
+        return (log_lines, processus.returncode)
 
 
 # Open edX ####################################################################
@@ -504,7 +529,11 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, LoggerInstanceM
         # Provisioning (ansible)
         self.log('info', 'Waiting for SSH to become available on server {}...'.format(server))
         server.sleep_until_status(server.BOOTED)
-        ansible_log = self.run_playbook()
+        ansible_log, exit_code = self.run_playbook()
+        if exit_code != 0:
+            server.update_status(provisioning_failure=True)
+            return (server, ansible_log)
+
         server.update_status(provisioned=True)
 
         # Reboot
