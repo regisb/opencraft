@@ -25,7 +25,7 @@ OpenEdXInstance model - Tests
 import re
 from mock import call, patch
 
-from instance.models.server import OpenStackServer
+from instance.models.server import OpenStackServer, Server
 from instance.models.instance import InconsistentInstanceState, OpenEdXInstance
 from instance.tests.base import TestCase
 from instance.tests.models.factories.instance import OpenEdXInstanceFactory
@@ -406,6 +406,25 @@ class OpenEdXInstanceTestCase(TestCase):
         ])
         self.assertEqual(mock_run_playbook.call_count, 1)
         self.assertEqual(mock_server_reboot.call_count, 1)
+
+    @patch_os_server
+    @patch('instance.models.server.openstack.create_server')
+    @patch('instance.models.server.OpenStackServer.sleep_until_status')
+    @patch('instance.models.server.OpenStackServer.reboot')
+    @patch('instance.models.instance.gandi.set_dns_record')
+    @patch('instance.models.instance.OpenEdXInstance.run_playbook')
+    def test_provision_failed(self, os_server_manager, mock_run_playbook, mock_set_dns_record, mock_server_reboot,
+                              mock_sleep_until_status, mock_openstack_create_server):
+        """
+        Run provisioning sequence
+        """
+        mock_run_playbook.return_value = (['log'], 1)
+        mock_openstack_create_server.return_value.id = 'test-run-provisioning-server'
+        os_server_manager.add_fixture('test-run-provisioning-server', 'openstack/api_server_2_active.json')
+
+        instance = OpenEdXInstanceFactory(sub_domain='run.provisioning', status=Server.BOOTED)
+        (server, log) = instance.provision()
+        self.assertEqual(log, ['log'])
 
     @patch_os_server
     @patch('instance.models.server.OpenStackServer.update_status', autospec=True)
