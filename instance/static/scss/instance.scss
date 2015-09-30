@@ -41,7 +41,7 @@
     .instance-log,
     .error-log {
         font-size: 0.8em;
-        white-space: normal;
+        white-space: pre-wrap;
     }
     .error-log {
         background-color: #fcc;
