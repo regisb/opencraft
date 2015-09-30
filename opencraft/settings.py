@@ -152,7 +152,7 @@ COMPRESS_PRECOMPILERS = (
 # Django-extensions ###########################################################
 
 SHELL_PLUS = "ipython"
-RUNSERVERPLUS_SERVER_ADDRESS_PORT = env('RUNDEV_SERVER_ADDRESS_PORT', default='localhost:5000')
+RUNSERVERPLUS_SERVER_ADDRESS_PORT = env('RUNDEV_SERVER_ADDRESS_PORT', default='0.0.0.0:5000')
 
 
 # Grappelli ###################################################################
@@ -208,8 +208,8 @@ HUEY = {
 SWAMP_DRAGON_REDIS_HOST = REDIS_URL_OBJ.hostname
 SWAMP_DRAGON_REDIS_PORT = REDIS_URL_OBJ.port
 SWAMP_DRAGON_CONNECTION = ('swampdragon.connections.sockjs_connection.DjangoSubscriberConnection', '/data')
-DRAGON_SERVER_ADDRESS_PORT = env('DRAGON_SERVER_ADDRESS_PORT', default='localhost:2001')
-DRAGON_URL = env('DRAGON_URL', default='http://{}/'.format(DRAGON_SERVER_ADDRESS_PORT))
+DRAGON_SERVER_ADDRESS_PORT = env('DRAGON_SERVER_ADDRESS_PORT', default='0.0.0.0:2001')
+DRAGON_URL = env('DRAGON_URL', default='http://localhost:2001/')
 
 
 # OpenStack ###################################################################
@@ -288,17 +288,20 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 ADMINS = env.json('ADMINS', default=set())
 
 BASE_HANDLERS = env.json('BASE_HANDLERS', default=["file", "console"])
+HANDLERS = BASE_HANDLERS + ['db']
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': "[{asctime}] {levelname:>8s} | process={process:<5d} | {name} | {message}",
+            'format': "{asctime} | {levelname:>8.8s} | process={process:<5d} | {name:<25.25s} | {message}",
             'style': '{',
             'datefmt': "%d/%b/%Y %H:%M:%S"
         },
-        'simple': {
-            'format': '%(levelname)s %(message)s'
+        'db': {
+            'format': "{name:<25.25s} | {message}",
+            'style': '{',
+            'datefmt': "%d/%b/%Y %H:%M:%S"
         },
     },
     'handlers': {
@@ -307,32 +310,37 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose'
         },
+        'db': {
+            'level': 'INFO',
+            'class': 'instance.logging.DBHandler',
+            'formatter': 'db'
+        },
     },
     'loggers': {
         '': {
-            'handlers': BASE_HANDLERS,
+            'handlers': HANDLERS,
             'propagate': True,
             'level': 'DEBUG',
         },
         'django': {
-            'handlers': BASE_HANDLERS,
+            'handlers': HANDLERS,
             'propagate': False,
             'level': 'INFO',
         },
         'opencraft': {
-            'handlers': BASE_HANDLERS,
+            'handlers': HANDLERS,
             'propagate': False,
             'level': 'DEBUG',
         },
         'requests': {
-            'handlers': BASE_HANDLERS,
+            'handlers': HANDLERS,
             'propagate': False,
             'level': 'DEBUG',
         }
     }
 }
 
-if 'file' in BASE_HANDLERS:
+if 'file' in HANDLERS:
     LOGGING['handlers']['file'] = {
         'level': 'DEBUG',
         'class': 'logging.FileHandler',
