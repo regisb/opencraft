@@ -488,10 +488,11 @@ class AnsibleInstanceMixin(models.Model):
                     self.ansible_playbook_filename,
                     username=settings.OPENSTACK_SANDBOX_SSH_USERNAME,
                 ) as processus:
-                    stdout_lines = [(logging.INFO, l) for l in processus.stdout]
-                    stderr_lines = [(logging.ERROR, l) for l in processus.stderr]
-                    for level, line in itertools.chain(stdout_lines,
-                                                       stderr_lines):
+                    output = itertools.chain(
+                        zip(itertools.repeat(logging.INFO), processus.stdout),
+                        zip(itertools.repeat(logging.ERROR), processus.stderr)
+                    )
+                    for level, line in output:
                         line = line.decode('utf-8').rstrip()
                         self.logger.log(level, line)
                         log_lines.append(line)
