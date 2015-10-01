@@ -83,97 +83,6 @@ class OpenStackServerTestCase(TestCase):
         self.assertEqual(server.os_server, server.nova.servers.get.return_value)
         self.assertEqual(server.nova.mock_calls, [call.servers.get('new-server-id')])
 
-    @patch('instance.models.server.openstack.create_server')
-    def test_update_status_new(self, mock_create_server):
-        """
-        Update status while the server is new
-        """
-        mock_create_server.return_value.id = 'new-server-id'
-        server = OpenStackServerFactory(os_server_fixture='openstack/api_server_1_building.json')
-        self.assertEqual(server.update_status(), server.STARTED)
-        self.assertEqual(server.status, server.STARTED)
-        self.assertEqual(server.update_status(), server.STARTED)
-        self.assertEqual(server.status, server.STARTED)
-
-    def test_update_status_started(self):
-        """
-        Update status while the server is started, without change on the OpenStack VM
-        """
-        server = StartedOpenStackServerFactory(os_server_fixture='openstack/api_server_1_building.json')
-        self.assertEqual(server.update_status(), server.STARTED)
-        self.assertEqual(server.status, server.STARTED)
-
-    @patch('instance.models.server.is_port_open')
-    def test_update_status_started_to_active(self, mock_is_port_open):
-        """
-        Update status while the server is started, when the VM becomes active
-        """
-        mock_is_port_open.return_value = False
-        server = StartedOpenStackServerFactory(os_server_fixture='openstack/api_server_2_active.json')
-        self.assertEqual(server.update_status(), server.ACTIVE)
-        self.assertEqual(server.status, server.ACTIVE)
-
-    @patch('instance.models.server.is_port_open')
-    def test_update_status_active_to_booted(self, mock_is_port_open):
-        """
-        Update status while the server is active, when the VM becomes booted
-        """
-        server = StartedOpenStackServerFactory(
-            os_server_fixture='openstack/api_server_2_active.json',
-            status=OpenStackServer.ACTIVE)
-        mock_is_port_open.return_value = False
-        self.assertEqual(server.update_status(), server.ACTIVE)
-        mock_is_port_open.return_value = True
-        self.assertEqual(server.update_status(), server.BOOTED)
-        self.assertEqual(server.status, server.BOOTED)
-
-    def test_update_status_booted_to_provisioned(self):
-        """
-        Update status while the server is booted, when the VM is provisioned
-        """
-        server = StartedOpenStackServerFactory(
-            os_server_fixture='openstack/api_server_2_active.json',
-            status=OpenStackServer.BOOTED)
-        self.assertEqual(server.update_status(), server.BOOTED)
-        self.assertEqual(server.update_status(provisioned=True), server.PROVISIONED)
-        self.assertEqual(server.status, server.PROVISIONED)
-
-    def test_update_status_booted_to_provisioning_failure(self):
-        """
-        Update status while the server is booted, when the VM failed to be provisioned
-        """
-        server = StartedOpenStackServerFactory(
-            os_server_fixture='openstack/api_server_2_active.json',
-            status=OpenStackServer.BOOTED)
-        self.assertEqual(server.update_status(), server.BOOTED)
-        self.assertEqual(server.update_status(provisioning_failure=True), server.PROVISIONING_FAILURE)
-        self.assertEqual(server.status, server.PROVISIONING_FAILURE)
-
-    def test_update_status_provisioned_to_rebooting(self):
-        """
-        Update status when the server is rebooted, after being provisioned
-        """
-        server = StartedOpenStackServerFactory(
-            os_server_fixture='openstack/api_server_2_active.json',
-            status=OpenStackServer.PROVISIONED)
-        self.assertEqual(server.update_status(), server.PROVISIONED)
-        self.assertEqual(server.update_status(rebooting=True), server.REBOOTING)
-        self.assertEqual(server.status, server.REBOOTING)
-
-    @patch('instance.models.server.is_port_open')
-    def test_update_status_rebooting_to_ready(self, mock_is_port_open):
-        """
-        Update status while the server is rebooting, when the server becomes ready (ssh accessible again)
-        """
-        server = StartedOpenStackServerFactory(
-            os_server_fixture='openstack/api_server_2_active.json',
-            status=OpenStackServer.REBOOTING)
-        mock_is_port_open.return_value = False
-        self.assertEqual(server.update_status(), server.REBOOTING)
-        mock_is_port_open.return_value = True
-        self.assertEqual(server.update_status(), server.READY)
-        self.assertEqual(server.status, server.READY)
-
     @patch('instance.models.server.OpenStackServer.update_status')
     @patch('instance.models.server.time.sleep')
     def test_sleep_until_status(self, mock_sleep, mock_update_status):
@@ -287,3 +196,102 @@ class OpenStackServerTestCase(TestCase):
         """
         server = StartedOpenStackServerFactory(os_server_fixture='openstack/api_server_2_active.json')
         self.assertEqual(server.public_ip, '192.168.100.200')
+
+
+class OpenStackServerStatusTestCase(TestCase):
+    """
+    Test cases for status switching in OpenStackServer models
+    """
+    # Factory boy doesn't properly support pylint+django
+    #pylint: disable=no-member
+
+    @patch('instance.models.server.openstack.create_server')
+    def test_update_status_new(self, mock_create_server):
+        """
+        Update status while the server is new
+        """
+        mock_create_server.return_value.id = 'new-server-id'
+        server = OpenStackServerFactory(os_server_fixture='openstack/api_server_1_building.json')
+        self.assertEqual(server.update_status(), server.STARTED)
+        self.assertEqual(server.status, server.STARTED)
+        self.assertEqual(server.update_status(), server.STARTED)
+        self.assertEqual(server.status, server.STARTED)
+
+    def test_update_status_started(self):
+        """
+        Update status while the server is started, without change on the OpenStack VM
+        """
+        server = StartedOpenStackServerFactory(os_server_fixture='openstack/api_server_1_building.json')
+        self.assertEqual(server.update_status(), server.STARTED)
+        self.assertEqual(server.status, server.STARTED)
+
+    @patch('instance.models.server.is_port_open')
+    def test_update_status_started_to_active(self, mock_is_port_open):
+        """
+        Update status while the server is started, when the VM becomes active
+        """
+        mock_is_port_open.return_value = False
+        server = StartedOpenStackServerFactory(os_server_fixture='openstack/api_server_2_active.json')
+        self.assertEqual(server.update_status(), server.ACTIVE)
+        self.assertEqual(server.status, server.ACTIVE)
+
+    @patch('instance.models.server.is_port_open')
+    def test_update_status_active_to_booted(self, mock_is_port_open):
+        """
+        Update status while the server is active, when the VM becomes booted
+        """
+        server = StartedOpenStackServerFactory(
+            os_server_fixture='openstack/api_server_2_active.json',
+            status=OpenStackServer.ACTIVE)
+        mock_is_port_open.return_value = False
+        self.assertEqual(server.update_status(), server.ACTIVE)
+        mock_is_port_open.return_value = True
+        self.assertEqual(server.update_status(), server.BOOTED)
+        self.assertEqual(server.status, server.BOOTED)
+
+    def test_update_status_booted_to_provisioned(self):
+        """
+        Update status while the server is booted, when the VM is provisioned
+        """
+        server = StartedOpenStackServerFactory(
+            os_server_fixture='openstack/api_server_2_active.json',
+            status=OpenStackServer.BOOTED)
+        self.assertEqual(server.update_status(), server.BOOTED)
+        self.assertEqual(server.update_status(provisioned=True), server.PROVISIONED)
+        self.assertEqual(server.status, server.PROVISIONED)
+
+    def test_update_status_provisioning_failure(self):
+        """
+        Update status while the server is booted, when the VM failed to be provisioned
+        """
+        server = StartedOpenStackServerFactory(
+            os_server_fixture='openstack/api_server_2_active.json',
+            status=OpenStackServer.BOOTED)
+        self.assertEqual(server.update_status(), server.BOOTED)
+        self.assertEqual(server.update_status(provisioning_failure=True), server.PROVISIONING_FAILURE)
+        self.assertEqual(server.status, server.PROVISIONING_FAILURE)
+
+    def test_update_status_provisioned_to_rebooting(self):
+        """
+        Update status when the server is rebooted, after being provisioned
+        """
+        server = StartedOpenStackServerFactory(
+            os_server_fixture='openstack/api_server_2_active.json',
+            status=OpenStackServer.PROVISIONED)
+        self.assertEqual(server.update_status(), server.PROVISIONED)
+        self.assertEqual(server.update_status(rebooting=True), server.REBOOTING)
+        self.assertEqual(server.status, server.REBOOTING)
+
+    @patch('instance.models.server.is_port_open')
+    def test_update_status_rebooting_to_ready(self, mock_is_port_open):
+        """
+        Update status while the server is rebooting, when the server becomes ready (ssh accessible again)
+        """
+        server = StartedOpenStackServerFactory(
+            os_server_fixture='openstack/api_server_2_active.json',
+            status=OpenStackServer.REBOOTING)
+        mock_is_port_open.return_value = False
+        self.assertEqual(server.update_status(), server.REBOOTING)
+        mock_is_port_open.return_value = True
+        self.assertEqual(server.update_status(), server.READY)
+        self.assertEqual(server.status, server.READY)

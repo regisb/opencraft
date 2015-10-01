@@ -423,8 +423,8 @@ class OpenEdXInstanceTestCase(TestCase):
         os_server_manager.add_fixture('test-run-provisioning-server', 'openstack/api_server_2_active.json')
 
         instance = OpenEdXInstanceFactory(sub_domain='run.provisioning', status=Server.BOOTED)
-        (server, log) = instance.provision()
-        self.assertEqual(log, ['log'])
+        result = instance.provision()
+        self.assertEqual(result[1], ['log'])
 
     @patch_os_server
     @patch('instance.models.server.OpenStackServer.update_status', autospec=True)
