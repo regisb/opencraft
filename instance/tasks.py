@@ -72,6 +72,10 @@ def watch_pr():
             instance.name = 'PR#{pr.number}: {truncated_title} ({pr.username}) - {i.reference_name}'\
                             .format(pr=pr, i=instance, truncated_title=truncated_title)
             instance.github_pr_number = pr.number
+            if pr.database_url:
+                instance.database_url = pr.database_url
+            if pr.mongo_url:
+                instance.mongo_url = pr.mongo_url
             instance.ansible_extra_settings = pr.extra_settings
             instance.save()
 

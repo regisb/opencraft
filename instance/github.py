@@ -24,6 +24,7 @@ GitHub Service API - Helper functions
 
 import re
 import requests
+import yaml
 
 from django.conf import settings
 
@@ -157,8 +158,32 @@ class PR:
         self.body = body
 
     @property
+    def settings(self):
+        """
+        Settings contained in the PR body
+        """
+        return yaml.load(get_settings_from_pr_body(self.body)) or {}
+
+    @property
+    def database_url(self):
+        """
+        An optional database url, from the DATABASE_URL setting in the PR body
+        """
+        return self.settings.get('DATABASE_URL')
+
+    @property
+    def mongo_url(self):
+        """
+        An optional mongo url, from the MONGO_URL setting in the PR body
+        """
+        return self.settings.get('MONGO_URL')
+
+    @property
     def extra_settings(self):
         """
-        Extra settings contained in the PR body
+        Extra ansible settings from the PR body, as a yaml string
         """
-        return get_settings_from_pr_body(self.body)
+        if not self.settings:
+            return ''
+        return yaml.dump({key: value for key, value in self.settings.items()
+                          if key not in ('DATABASE_URL', 'MONGO_URL')})
