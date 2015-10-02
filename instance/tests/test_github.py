@@ -101,11 +101,13 @@ class GitHubTestCase(TestCase):
         """
         settings = {'TEST': True,
                     'DATABASE_URL': 'mysql://user:pass@db.opencraft.com/test',
-                    'MONGO_URL': 'mongo://user:pass@mongo.opencraft.com/test'}
+                    'MONGO_URL': 'mongo://user:pass@mongo.opencraft.com/test',
+                    'EPHEMERAL_DATABASES': False}
         pr = PRFactory(body='**Settings**\r\n```yaml\r\n' + yaml.dump(settings) + '```')
         self.assertEqual(pr.settings, settings)
         self.assertEqual(pr.database_url, settings['DATABASE_URL'])
         self.assertEqual(pr.mongo_url, settings['MONGO_URL'])
+        self.assertFalse(pr.ephemeral_databases)
         self.assertEqual(yaml.load(pr.extra_settings), {'TEST': True})
 
     def test_pr_no_settings(self):
@@ -116,6 +118,7 @@ class GitHubTestCase(TestCase):
         self.assertEqual(pr.settings, {})
         self.assertIsNone(pr.database_url)
         self.assertIsNone(pr.mongo_url)
+        self.assertIsNone(pr.ephemeral_databases)
         self.assertEqual(pr.extra_settings, '')
 
     @responses.activate
