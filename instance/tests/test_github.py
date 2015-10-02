@@ -23,7 +23,6 @@ GitHub - Tests
 # Imports #####################################################################
 
 import json
-import factory
 import requests
 import responses
 import yaml
@@ -32,23 +31,7 @@ from mock import patch
 
 from instance import github
 from instance.tests.base import TestCase, get_raw_fixture
-
-
-# Factories ###################################################################
-
-class PRFactory(factory.Factory):
-    """
-    Factory for PR instances
-    """
-    class Meta: #pylint: disable=missing-docstring
-        model = github.PR
-
-    number = factory.Sequence(int)
-    fork_name = 'edx/edx-platform'
-    branch_name = 'master'
-    title = factory.Sequence('PR #{}'.format)
-    username = 'edx'
-    body = ''
+from instance.tests.factories.pr import PRFactory
 
 
 # Tests #######################################################################

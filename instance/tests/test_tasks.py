@@ -24,11 +24,13 @@ Worker tasks - Tests
 
 import yaml
 
+from django.test import override_settings
 from mock import patch
 
-from instance import github, tasks
+from instance import tasks
 from instance.models.instance import OpenEdXInstance
 from instance.tests.base import TestCase
+from instance.tests.factories.pr import PRFactory
 from instance.tests.models.factories.instance import OpenEdXInstanceFactory
 
 
@@ -62,7 +64,7 @@ class TasksTestCase(TestCase):
         """
         mock_get_username_list.return_value = ['itsjeyd']
         settings = 'WATCH: true\r\nDATABASE_URL: mysql://db.opencraft.com\r\nMONGO_URL: mongo://mongo.opencraft.com\r\n'
-        pr = github.PR(
+        pr = PRFactory(
             number=234,
             fork_name='watched/fork',
             branch_name='watch-branch',
@@ -86,3 +88,32 @@ class TasksTestCase(TestCase):
         self.assertEqual(
             instance.name,
             'PR#234: Watched PR title which ... (bradenmacdonald) - watched/watch-branch (7777777)')
+
+    @override_settings(INSTANCE_DATABASE_URL='mysql://db.opencraft.com',
+                       INSTANCE_MONGO_URL='mongo://mongo.opencraft.com')
+    @patch('instance.models.instance.github.get_commit_id_from_ref')
+    @patch('instance.tasks.provision_instance')
+    @patch('instance.tasks.get_pr_list_from_username')
+    @patch('instance.tasks.get_username_list_from_team')
+    def test_watch_pr_ephemeral_databases(self, mock_get_username_list,
+                                          mock_get_pr_list_from_username,
+                                          mock_provision_instance,
+                                          mock_get_commit_id_from_ref):
+        """
+        Asking for ephemeral databases in the PR should unset external
+        database settings, even if the default is to use external databases
+        """
+        mock_get_username_list.return_value = ['itsjeyd']
+        settings = 'EPHEMERAL_DATABASES: yes\r\n'
+        pr = PRFactory(
+            body='Hello watcher!\n- - -\r\n**Settings**\r\n```\r\n' + settings + '```\r\nMore...',
+        )
+        mock_get_pr_list_from_username.return_value = [pr]
+        mock_get_commit_id_from_ref.return_value = '7' * 40
+
+        tasks.watch_pr()
+        self.assertEqual(mock_provision_instance.call_count, 1)
+        instance = OpenEdXInstance.objects.get(pk=mock_provision_instance.mock_calls[0][1][0])
+        self.assertTrue(instance.ephemeral_databases)
+        self.assertFalse(instance.database_url)
+        self.assertFalse(instance.mongo_url)

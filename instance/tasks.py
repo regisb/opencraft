@@ -76,6 +76,8 @@ def watch_pr():
                 instance.database_url = pr.database_url
             if pr.mongo_url:
                 instance.mongo_url = pr.mongo_url
+            if pr.ephemeral_databases is not None:
+                instance.ephemeral_databases = pr.ephemeral_databases
             instance.ansible_extra_settings = pr.extra_settings
             instance.save()
 
