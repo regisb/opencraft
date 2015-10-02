@@ -461,8 +461,7 @@ class AnsibleInstanceMixin(models.Model):
         """
         Run a playbook against the instance active servers
         """
-        attempt = 0
-        while attempt < self.attempts:
+        for attempt in range(self.attempts):
             with open_repository(self.ansible_source_repo_url,
                                  ref=self.configuration_version) as configuration_repo:
                 playbook_path = os.path.join(configuration_repo.working_dir,
@@ -500,7 +499,6 @@ class AnsibleInstanceMixin(models.Model):
                     if processus.returncode != 0:
                         self.logger.error(
                             'Playbook failed for instance {}'.format(self))
-                        attempt += 1
                         continue
                     else:
                         break
