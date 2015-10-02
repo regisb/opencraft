@@ -305,6 +305,13 @@ class GitHubInstanceMixin(VersionControlInstanceMixin):
         return '{0.github_organization_name}/{0.github_repository_name}'.format(self)
 
     @property
+    def reference_name(self):
+        """
+        A descriptive name for the instance, which includes meaningful attributes
+        """
+        return '{0.github_organization_name}/{0.branch_name} ({0.commit_short_id})'.format(self)
+
+    @property
     def github_base_url(self):
         """
         Base GitHub URL of the fork (eg. 'https://github.com/open-craft/edx-platform')
@@ -516,13 +523,6 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         Name of the fork to use by default, when no repository is specified
         """
         return settings.DEFAULT_FORK
-
-    @property
-    def reference_name(self):
-        """
-        A descriptive name for the instance, which includes meaningful attributes
-        """
-        return '{s.github_organization_name}/{s.branch_name} ({s.commit_short_id})'.format(s=self)
 
     @property
     def ephemeral_databases(self):
