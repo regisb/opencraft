@@ -28,6 +28,7 @@ from mock import call, patch
 from instance.models.server import OpenStackServer
 from instance.models.instance import InconsistentInstanceState, OpenEdXInstance
 from instance.tests.base import TestCase
+from instance.tests.factories.pr import PRFactory
 from instance.tests.models.factories.instance import OpenEdXInstanceFactory
 from instance.tests.models.factories.server import (
     StartedOpenStackServerFactory, BootedOpenStackServerFactory, patch_os_server)
@@ -352,6 +353,23 @@ class OpenEdXInstanceTestCase(TestCase):
         self.assertEqual(instance.github_repository_name, 'edx-platform')
         self.assertEqual(instance.commit_id, '9' * 40)
         self.assertEqual(instance.name, 'edx/master (9999999)')
+
+    @patch('instance.models.instance.github.get_commit_id_from_ref')
+    def test_create_from_pr(self, mock_get_commit_id_from_ref):
+        """
+        Create an instance from a pull request
+        """
+        mock_get_commit_id_from_ref.return_value = '9' * 40
+        settings = 'DATABASE_URL: mysql://db.opencraft.com\r\nMONGO_URL: mongo://mongo.opencraft.com\r\n'
+        pr = PRFactory(body='**Settings**\r\n```\r\n' + settings + '```\r\n')
+        instance, created = OpenEdXInstance.objects.update_or_create_from_pr(pr)
+        self.assertTrue(created)
+        self.assertEqual(instance.fork_name, pr.fork_name)
+        self.assertEqual(instance.branch_name, pr.branch_name)
+        self.assertRegex(instance.name, r'^PR')
+        self.assertEqual(instance.github_pr_number, pr.number)
+        self.assertEqual(instance.database_url, pr.database_url)
+        self.assertEqual(instance.mongo_url, pr.mongo_url)
 
     def test_get_by_fork_name(self):
         """

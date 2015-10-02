@@ -25,7 +25,6 @@ Worker tasks for instance hosting & management
 from huey.djhuey import crontab, periodic_task, task
 
 from django.conf import settings
-from django.template.defaultfilters import truncatewords
 
 from instance.github import get_username_list_from_team, get_pr_list_from_username
 from instance.models.instance import OpenEdXInstance
@@ -61,26 +60,7 @@ def watch_pr():
 
     for username in team_username_list:
         for pr in get_pr_list_from_username(username, settings.WATCH_FORK):
-            pr_sub_domain = 'pr{number}.sandbox'.format(number=pr.number)
-
-            instance, created = OpenEdXInstance.objects.get_or_create(
-                sub_domain=pr_sub_domain,
-                fork_name=pr.fork_name,
-                branch_name=pr.branch_name,
-            )
-            truncated_title = truncatewords(pr.title, 4)
-            instance.name = 'PR#{pr.number}: {truncated_title} ({pr.username}) - {i.reference_name}'\
-                            .format(pr=pr, i=instance, truncated_title=truncated_title)
-            instance.github_pr_number = pr.number
-            if pr.database_url:
-                instance.database_url = pr.database_url
-            if pr.mongo_url:
-                instance.mongo_url = pr.mongo_url
-            if pr.ephemeral_databases is not None:
-                instance.ephemeral_databases = pr.ephemeral_databases
-            instance.ansible_extra_settings = pr.extra_settings
-            instance.save()
-
+            instance, created = OpenEdXInstance.objects.update_or_create_from_pr(pr)
             if created:
                 logger.info('New PR found, creating sandbox: %s', pr)
                 provision_instance(instance.pk)

@@ -34,6 +34,7 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.signals import pre_save
 from django.template import loader
+from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 from django_extensions.db.models import TimeStampedModel
 
@@ -219,6 +220,21 @@ class GitHubInstanceQuerySet(models.QuerySet):
     Additional methods for instance querysets
     Also used as the standard manager for the GitHubInstance model
     """
+    def update_or_create_from_pr(self, pr):
+        """
+        Create or update an instance for the given pull request
+        """
+        pr_sub_domain = 'pr{number}.sandbox'.format(number=pr.number)
+
+        instance, created = self.get_or_create(
+            sub_domain=pr_sub_domain,
+            fork_name=pr.fork_name,
+            branch_name=pr.branch_name,
+        )
+        instance.update_from_pr(pr)
+        instance.save()
+        return instance, created
+
     def create(self, *args, **kwargs):
         """
         Augmented `create()` method:
@@ -382,8 +398,7 @@ class GitHubInstanceMixin(VersionControlInstanceMixin):
 
             # Update the hash in the instance title if it is present there
             # TODO: Find a better way to handle this - include the hash dynamically?
-            # TODO: Figure out why the warnings aren't suppressed despite the fact that it's a mixin
-            if self.name and old_commit_short_id: #pylint: disable=access-member-before-definition
+            if self.name and old_commit_short_id:
                 #pylint: disable=attribute-defined-outside-init
                 self.name = self.name.replace(old_commit_short_id, self.commit_short_id)
 
@@ -406,6 +421,16 @@ class GitHubInstanceMixin(VersionControlInstanceMixin):
         self.github_repository_name = fork_repo
         if commit:
             self.save()
+
+    def update_from_pr(self, pr):
+        """
+        Update this instance with settings from the given pull request
+        """
+        truncated_title = truncatewords(pr.title, 4)
+        #pylint: disable=attribute-defined-outside-init
+        self.name = 'PR#{pr.number}: {truncated_title} ({pr.username}) - {i.reference_name}'\
+                    .format(pr=pr, i=self, truncated_title=truncated_title)
+        self.github_pr_number = pr.number
 
 
 # Ansible #####################################################################
@@ -613,6 +638,19 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         Studio URL
         """
         return u'{0.protocol}://{0.studio_domain}/'.format(self)
+
+    def update_from_pr(self, pr):
+        """
+        Update this instance with settings from the given pull request
+        """
+        super().update_from_pr(pr)
+        if pr.database_url:
+            self.database_url = pr.database_url
+        if pr.mongo_url:
+            self.mongo_url = pr.mongo_url
+        if pr.ephemeral_databases is not None:
+            self.ephemeral_databases = pr.ephemeral_databases
+        self.ansible_extra_settings = pr.extra_settings
 
     @log_exception
     def provision(self):
