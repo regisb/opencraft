@@ -88,7 +88,7 @@ class InstanceIntegrationFailureTestCase(IntegrationTestCase):
         )
         provision_instance(instance.pk)
         self.assertEqual(instance.status, OpenEdXInstance.ERROR)
-        self.assertEqual(instance.status, OpenEdXInstance.ERR_PROVISIONING_FAILED)
+        self.assertEqual(instance.error, OpenEdXInstance.ERR_PROVISIONING_FAILED)
 
         uid = str(uuid.uuid4())[:8]
         instance = OpenEdXInstance.objects.create(
