@@ -136,12 +136,13 @@ app.controller("Index", ['$scope', 'Restangular', 'OpenCraftAPI', '$q',
             var error = [];
             var counting = false;
             for (var i = log_entries.length; i > 0; i--) {
-                if (!/ERROR \|/.test(log_entries[i - 1])) {
+                var entry = log_entries[i - 1];
+                if (entry.level != 'ERROR' && entry.level != 'CRITICAL') {
                     if (counting) {
                         return error.reverse();
                     }
                 } else {
-                    error.push(log_entries[i - 1]);
+                    error.push(entry);
                     counting = true;
                 }
             }

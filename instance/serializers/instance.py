@@ -25,31 +25,11 @@ Instance serializers (API representation)
 from rest_framework import serializers
 
 from instance.models.instance import OpenEdXInstance
-from instance.models.server import OpenStackServer
+from instance.serializers.server import OpenStackServerSerializer
+from instance.serializers.logentry import LogEntrySerializer
 
 
 # Serializers #################################################################
-
-class OpenStackServerSerializer(serializers.ModelSerializer):
-    """
-    OpenStackServer API Serializer
-    """
-    api_url = serializers.HyperlinkedIdentityField(view_name='api:openstackserver-detail')
-    instance = serializers.HyperlinkedRelatedField(view_name='api:openedxinstance-detail', read_only=True)
-
-    class Meta:
-        model = OpenStackServer
-        fields = (
-            'id',
-            'api_url',
-            'created',
-            'instance',
-            'modified',
-            'openstack_id',
-            'status',
-            'error',
-        )
-
 
 class OpenEdXInstanceSerializer(serializers.ModelSerializer):
     """
@@ -57,6 +37,7 @@ class OpenEdXInstanceSerializer(serializers.ModelSerializer):
     """
     api_url = serializers.HyperlinkedIdentityField(view_name='api:openedxinstance-detail')
     active_server_set = OpenStackServerSerializer(many=True, read_only=True)
+    log_entries = LogEntrySerializer(many=True, read_only=True)
 
     class Meta:
         model = OpenEdXInstance

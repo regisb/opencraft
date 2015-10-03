@@ -67,14 +67,35 @@ class LogEntryTestCase(TestCase):
         with freeze_time("2015-08-05 18:07:06"):
             server.logger.critical('Line #7, exception')
 
-        self.assertEqual(instance.log_entries, """
-2015-08-05 18:07:00 |     INFO | instance.models.instance  | instance=my.instance | Line #1, on instance
-2015-08-05 18:07:01 |     INFO | instance.models.server    | instance=my.instance,server=vm1_id | Line #2, on server
-2015-08-05 18:07:03 |     INFO | instance.models.instance  | instance=my.instance | Line #4, on instance
-2015-08-05 18:07:04 |  WARNING | instance.models.instance  | instance=my.instance | Line #5, on instance (warn)
-2015-08-05 18:07:05 |     INFO | instance.models.server    | instance=my.instance,server=vm1_id | Line #6, on server
-2015-08-05 18:07:06 | CRITICAL | instance.models.server    | instance=my.instance,server=vm1_id | Line #7, exception
-""".strip().split("\n"))
+        entries = instance.log_entries
+        self.assertEqual(entries[0].level, "INFO")
+        self.assertEqual(entries[0].created.strftime("%Y-%m-%d %H:%M:%S"), "2015-08-05 18:07:00")
+        self.assertEqual(entries[0].text,
+                         "instance.models.instance  | instance=my.instance | Line #1, on instance")
+
+        self.assertEqual(entries[1].level, "INFO")
+        self.assertEqual(entries[1].created.strftime("%Y-%m-%d %H:%M:%S"), "2015-08-05 18:07:01")
+        self.assertEqual(entries[1].text,
+                         "instance.models.server    | instance=my.instance,server=vm1_id | Line #2, on server")
+        self.assertEqual(entries[2].level, "INFO")
+        self.assertEqual(entries[2].created.strftime("%Y-%m-%d %H:%M:%S"), "2015-08-05 18:07:03")
+        self.assertEqual(entries[2].text,
+                         "instance.models.instance  | instance=my.instance | Line #4, on instance")
+
+        self.assertEqual(entries[3].level, "WARNING")
+        self.assertEqual(entries[3].created.strftime("%Y-%m-%d %H:%M:%S"), "2015-08-05 18:07:04")
+        self.assertEqual(entries[3].text,
+                         "instance.models.instance  | instance=my.instance | Line #5, on instance (warn)")
+
+        self.assertEqual(entries[4].level, "INFO")
+        self.assertEqual(entries[4].created.strftime("%Y-%m-%d %H:%M:%S"), "2015-08-05 18:07:05")
+        self.assertEqual(entries[4].text,
+                         "instance.models.server    | instance=my.instance,server=vm1_id | Line #6, on server")
+
+        self.assertEqual(entries[5].level, "CRITICAL")
+        self.assertEqual(entries[5].created.strftime("%Y-%m-%d %H:%M:%S"), "2015-08-05 18:07:06")
+        self.assertEqual(entries[5].text,
+                         "instance.models.server    | instance=my.instance,server=vm1_id | Line #7, exception")
 
     @patch('instance.logging.publish_data')
     def test_log_publish(self, mock_publish_data): #pylint: disable=no-self-use
@@ -88,8 +109,11 @@ class LogEntryTestCase(TestCase):
             instance.logger.info('Text the client should see')
 
         mock_publish_data.assert_called_with('log', {
-            'log_entry': '2015-09-21 21:07:00 |     INFO | instance.models.instance  | '
-                         'instance=my.instance | Text the client should see',
+            'log_entry': {
+                'created': '2015-09-21T21:07:00Z',
+                'level': 'INFO',
+                'text': 'instance.models.instance  | instance=my.instance | Text the client should see',
+            },
             'type': 'instance_log',
             'instance_id': instance.pk,
         })
@@ -98,9 +122,12 @@ class LogEntryTestCase(TestCase):
             server.logger.info('Text the client should also see, with unicode «ταБЬℓσ»')
 
         mock_publish_data.assert_called_with('log', {
-            'log_entry': '2015-09-21 21:07:01 |     INFO | instance.models.server    | '
-                         'instance=my.instance,server=vm1_id | '
-                         'Text the client should also see, with unicode «ταБЬℓσ»',
+            'log_entry': {
+                'created': '2015-09-21T21:07:01Z',
+                'level': 'INFO',
+                'text': ('instance.models.server    | instance=my.instance,server=vm1_id | Text the client '
+                         'should also see, with unicode «ταБЬℓσ»'),
+            },
             'type': 'instance_log',
             'instance_id': instance.pk,
             'server_id': server.pk,

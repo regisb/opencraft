@@ -217,18 +217,18 @@ class Instance(ValidateModelMixin, TimeStampedModel):
 
         while instance_log_entry is not None and server_log_entry is not None:
             if server_log_entry.created < instance_log_entry.created:
-                log.append('{}'.format(server_log_entry))
+                log.append(server_log_entry)
                 server_log_entry = next_server_log_entry()
             else:
-                log.append('{}'.format(instance_log_entry))
+                log.append(instance_log_entry)
                 instance_log_entry = next_instance_log_entry()
 
         while instance_log_entry is not None:
-            log.append('{}'.format(instance_log_entry))
+            log.append(instance_log_entry)
             instance_log_entry = next_instance_log_entry()
 
         while server_log_entry is not None:
-            log.append('{}'.format(server_log_entry))
+            log.append(server_log_entry)
             server_log_entry = next_server_log_entry()
 
         return log
