@@ -408,23 +408,29 @@ class OpenEdXInstanceTestCase(TestCase):
         self.assertEqual(mock_server_reboot.call_count, 1)
 
     @patch_os_server
-    @patch('instance.models.server.openstack.create_server')
     @patch('instance.models.server.OpenStackServer.sleep_until_status')
-    @patch('instance.models.server.OpenStackServer.reboot')
+    @patch('instance.models.server.OpenStackServer.os_server', autospec=True)
+    @patch('instance.models.server.OpenStackServer.start', autospec=True)
     @patch('instance.models.instance.gandi.set_dns_record')
     @patch('instance.models.instance.OpenEdXInstance.deploy')
-    def test_provision_failed(self, os_server_manager, mock_deploy, mock_set_dns_record, mock_server_reboot,
-                              mock_sleep_until_status, mock_openstack_create_server):
+    def test_provision_failed(self, os_server_manager, mock_deploy, mock_set_dns_record,
+                              mock_server_start, mock_os_server, mock_sleep_until_status):
         """
-        Run provisioning sequence
+        Run provisioning sequence failing the deployment on purpose to make sure the
+        server status will be set accordingly.
         """
         mock_deploy.return_value = (['log'], 1)
-        mock_openstack_create_server.return_value.id = 'test-run-provisioning-server'
-        os_server_manager.add_fixture('test-run-provisioning-server', 'openstack/api_server_2_active.json')
+        instance = OpenEdXInstanceFactory(sub_domain='run.provisioning')
 
-        instance = OpenEdXInstanceFactory(sub_domain='run.provisioning', status=Server.BOOTED)
-        result = instance.provision()
-        self.assertEqual(result[1], ['log'])
+        def server_start(self):
+            """
+            Make sure we get the server in the BOOTED state when it is started
+            """
+            self.status = Server.BOOTED
+        mock_server_start.side_effect = server_start
+
+        server = instance.provision()[0]
+        self.assertEqual(server.status, Server.PROVISIONING_FAILURE)
 
     @patch_os_server
     @patch('instance.models.server.OpenStackServer.update_status', autospec=True)
