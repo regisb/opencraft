@@ -457,9 +457,33 @@ class AnsibleInstanceMixin(models.Model):
         self.logger.debug('Vars.yml:\n%s', vars_str)
         return vars_str
 
-    def run_playbook(self):
+    def _run_playbook(self, requirements_path, playbook_path):
         """
         Run a playbook against the instance active servers
+        """
+        log_lines = []
+        with ansible.run_playbook(
+            requirements_path,
+            self.inventory_str,
+            self.vars_str,
+            playbook_path,
+            self.ansible_playbook_filename,
+            username=settings.OPENSTACK_SANDBOX_SSH_USERNAME,
+        ) as processus:
+            output = itertools.chain(
+                zip(itertools.repeat(logging.INFO), processus.stdout),
+                zip(itertools.repeat(logging.ERROR), processus.stderr)
+            )
+            for level, line in output:
+                line = line.decode('utf-8').rstrip()
+                self.logger.log(level, line)
+                log_lines.append(line)
+            processus.wait()
+            return (log_lines, processus.returncode)
+
+    def deploy(self):
+        """
+        Deploy instance to the active servers
         """
         for attempt in range(self.attempts):
             with open_repository(self.ansible_source_repo_url,
@@ -477,35 +501,17 @@ class AnsibleInstanceMixin(models.Model):
                            attempts=self.attempts,
                            attempt=attempt + 1)
                 self.logger.info(log)
+                log, returncode = self._run_playbook(requirements_path, playbook_path)
+                if returncode != 0:
+                    self.logger.error(
+                        'Playbook failed for instance {}'.format(self))
+                    continue
+                else:
+                    break
 
-                log_lines = []
-                with ansible.run_playbook(
-                    requirements_path,
-                    self.inventory_str,
-                    self.vars_str,
-                    playbook_path,
-                    self.ansible_playbook_filename,
-                    username=settings.OPENSTACK_SANDBOX_SSH_USERNAME,
-                ) as processus:
-                    output = itertools.chain(
-                        zip(itertools.repeat(logging.INFO), processus.stdout),
-                        zip(itertools.repeat(logging.ERROR), processus.stderr)
-                    )
-                    for level, line in output:
-                        line = line.decode('utf-8').rstrip()
-                        self.logger.log(level, line)
-                        log_lines.append(line)
-                    processus.wait()
-                    if processus.returncode != 0:
-                        self.logger.error(
-                            'Playbook failed for instance {}'.format(self))
-                        continue
-                    else:
-                        break
-
-        if processus.returncode == 0:
+        if returncode == 0:
             self.logger.info('Playbook completed for instance {}'.format(self))
-        return (log_lines, processus.returncode)
+        return (log, returncode)
 
 
 # Open edX ####################################################################
@@ -580,7 +586,7 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         """
         Run the provisioning sequence of the instance, recreating the servers from scratch
 
-        Returns: (server, ansible_log)
+        Returns: (server, log)
         """
         self.last_provisioning_started = timezone.now()
         self.save()
@@ -603,10 +609,10 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         # Provisioning (ansible)
         self.logger.info('Waiting for SSH to become available on server {}...'.format(server))
         server.sleep_until_status(server.BOOTED)
-        ansible_log, exit_code = self.run_playbook()
+        log, exit_code = self.deploy()
         if exit_code != 0:
             server.update_status(provisioning_failure=True)
-            return (server, ansible_log)
+            return (server, log)
 
         server.update_status(provisioned=True)
 
@@ -616,6 +622,6 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         server.sleep_until_status(server.READY)
         self.logger.info('Provisioning completed')
 
-        return (server, ansible_log)
+        return (server, log)
 
 pre_save.connect(OpenEdXInstance.on_pre_save, sender=OpenEdXInstance)
