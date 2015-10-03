@@ -26,7 +26,7 @@
         <a ng-click="select('instance', instance)">{{ instance.name }}</a>
         <div class="status-icon" ng-switch="instance.status">
           <i class="fa fa-ellipsis-h" tooltip-placement="right" tooltip="Provisioning in progress" ng-switch-default></i>
-          <i class="fa fa-times" tooltip-placement="right" tooltip="Provisioning failure" ng-switch-when="provisioning_failure"></i>
+          <i class="fa fa-times" tooltip-placement="right" tooltip="Error" ng-switch-when="error"></i>
           <i class="fa fa-check" tooltip-placement="right" tooltip="Ready" ng-switch-when="ready"></i>
         </div>
       </li>
@@ -68,12 +68,12 @@
                                                ng-click="provision(selected.instance)">
               Reprovision
             </button>
-            <button class="button reprovision" ng-switch-when="provisioning_failure"
+            <button class="button reprovision" ng-switch-when="error"
                                                ng-click="provision(selected.instance)">
               Reprovision
             </button>
             <i class="fa fa-2x fa-ellipsis-h" tooltip-placement="right" tooltip="Provisioning in progress" ng-switch-default></i>
-            <i class="fa fa-2x fa-times" tooltip-placement="right" tooltip="Provisioning failure" ng-switch-when="provisioning_failure"></i>
+            <i class="fa fa-2x fa-times" tooltip-placement="right" tooltip="Error" ng-switch-when="error"></i>
             <i class="fa fa-2x fa-check" tooltip-placement="right" tooltip="Ready" ng-switch-when="ready"></i>
           </div>
         </div>
@@ -82,7 +82,7 @@
     <div class="row">
       <tabset>
         <tab heading="Log">
-          <pre ng-if="selected.instance.status == 'provisioning_failure'" class="error-log" ng-repeat="line in error_log() track by $index">{{ line }}</pre><br/>
+          <pre ng-if="selected.instance.status == 'error'" class="error-log" ng-repeat="line in error_log() track by $index">{{ line }}</pre><br/>
           <pre class="instance-log" ng-repeat="line in selected.instance.log_entries track by $index">{{ line }}</pre>
         </tab>
         <tab heading="Configuration">

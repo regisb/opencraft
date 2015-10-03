@@ -49,7 +49,7 @@ class OpenEdXInstanceViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         if instance.status not in (instance.EMPTY,
                                    instance.READY,
-                                   instance.PROVISIONING_FAILURE):
+                                   instance.ERROR):
             return Response({'status': 'Instance is not ready for reprovisioning'},
                             status=status.HTTP_403_FORBIDDEN)
 

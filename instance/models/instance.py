@@ -88,13 +88,15 @@ class Instance(ValidateModelMixin, TimeStampedModel):
     ACTIVE = 'active'
     BOOTED = 'booted'
     PROVISIONED = 'provisioned'
-    PROVISIONING_FAILURE = 'provisioning_failure'
+    ERROR = 'error'
     REBOOTING = 'rebooting'
     READY = 'ready'
     LIVE = 'live'
     STOPPING = 'stopping'
     STOPPED = 'stopped'
     TERMINATING = 'terminating'
+
+    ERR_PROVISIONING_FAILED = 'provisioning_failed'
 
     sub_domain = models.CharField(max_length=50)
     email = models.EmailField(default='contact@example.com')
@@ -141,17 +143,37 @@ class Instance(ValidateModelMixin, TimeStampedModel):
         return self.server_set.exclude_terminated()
 
     @property
+    def current_server(self):
+        """
+        Current active server. Raises InconsistentInstanceState if more than
+        one exists.
+        """
+        active_server_set = self.active_server_set
+        if not active_server_set:
+            return
+        elif active_server_set.count() > 1:
+            raise InconsistentInstanceState('Multiple servers are active, which is unsupported')
+        return active_server_set[0]
+
+    @property
     def status(self):
         """
         Instance status
         """
-        active_server_set = self.active_server_set
-        if not active_server_set:
-            return self.EMPTY
-        elif active_server_set.count() > 1:
-            raise InconsistentInstanceState('Multiple servers are active, which is unsupported')
-        else:
-            return active_server_set[0].status
+        server = self.current_server
+        if server:
+            return server.status
+        return self.EMPTY
+
+    @property
+    def error(self):
+        """
+        Instance error
+        """
+        server = self.current_server
+        if server:
+            return server.error
+        return self.EMPTY
 
     @property
     def event_context(self):
@@ -611,7 +633,7 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         server.sleep_until_status(server.BOOTED)
         log, exit_code = self.deploy()
         if exit_code != 0:
-            server.update_status(provisioning_failure=True)
+            server.update_status(error=server.ERR_PROVISIONING_FAILED)
             return (server, log)
 
         server.update_status(provisioned=True)

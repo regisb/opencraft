@@ -260,7 +260,7 @@ class OpenStackServerStatusTestCase(TestCase):
         self.assertEqual(server.update_status(provisioned=True), server.PROVISIONED)
         self.assertEqual(server.status, server.PROVISIONED)
 
-    def test_update_status_provisioning_failure(self):
+    def test_update_status_booted_to_error(self):
         """
         Update status while the server is booted, when the VM failed to be provisioned
         """
@@ -268,8 +268,8 @@ class OpenStackServerStatusTestCase(TestCase):
             os_server_fixture='openstack/api_server_2_active.json',
             status=OpenStackServer.BOOTED)
         self.assertEqual(server.update_status(), server.BOOTED)
-        self.assertEqual(server.update_status(provisioning_failure=True), server.PROVISIONING_FAILURE)
-        self.assertEqual(server.status, server.PROVISIONING_FAILURE)
+        self.assertEqual(server.update_status(error=server.ERR_PROVISIONING_FAILED), server.ERROR)
+        self.assertEqual(server.error, server.ERR_PROVISIONING_FAILED)
 
     def test_update_status_provisioned_to_rebooting(self):
         """

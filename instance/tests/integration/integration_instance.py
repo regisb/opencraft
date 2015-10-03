@@ -88,7 +88,8 @@ class InstanceIntegrationFailureTestCase(IntegrationTestCase):
                     certs_version='named-release/cypress',
                 )
                 provision_instance(instance.pk)
-                self.assertEqual(instance.status, OpenEdXInstance.PROVISIONING_FAILURE)
+                self.assertEqual(instance.status, OpenEdXInstance.ERROR)
+                self.assertEqual(instance.status, OpenEdXInstance.ERR_PROVISIONING_FAILED)
 
                 uid = str(uuid.uuid4())[:8]
                 instance = OpenEdXInstance.objects.create(
@@ -107,3 +108,4 @@ class InstanceIntegrationFailureTestCase(IntegrationTestCase):
                 )
                 provision_instance(instance.pk)
                 self.assertEqual(instance.status, OpenEdXInstance.READY)
+                self.assertEqual(instance.error, None)

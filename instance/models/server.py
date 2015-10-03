@@ -88,7 +88,7 @@ class Server(ValidateModelMixin, TimeStampedModel):
     ACTIVE = 'active'
     BOOTED = 'booted'
     PROVISIONED = 'provisioned'
-    PROVISIONING_FAILURE = 'provisioning_failure'
+    ERROR = 'error'
     REBOOTING = 'rebooting'
     READY = 'ready'
     LIVE = 'live'
@@ -103,7 +103,7 @@ class Server(ValidateModelMixin, TimeStampedModel):
         (ACTIVE, 'Active - Running but not booted yet'),
         (BOOTED, 'Booted - Booted but not ready to be added to the application'),
         (PROVISIONED, 'Provisioned - Provisioning is completed'),
-        (PROVISIONING_FAILURE, 'Provisioning failure - Error during provisioning'),
+        (ERROR, 'Error - Error during setup'),
         (REBOOTING, 'Rebooting - Reboot in progress, to apply changes from provisioning'),
         (READY, 'Ready - Rebooted and ready to add to the application'),
         (LIVE, 'Live - Is actively used in the application and/or accessed by users'),
@@ -113,8 +113,11 @@ class Server(ValidateModelMixin, TimeStampedModel):
         (TERMINATED, 'Terminated - Stopped forever'),
     )
 
+    ERR_PROVISIONING_FAILED = 'provisioning_failed'
+
     instance = models.ForeignKey(OpenEdXInstance, related_name='server_set')
     status = models.CharField(max_length=20, default=NEW, choices=STATUS_CHOICES, db_index=True)
+    error = models.CharField(max_length=64, null=True, blank=True)
 
     objects = ServerQuerySet().as_manager()
 
@@ -138,7 +141,7 @@ class Server(ValidateModelMixin, TimeStampedModel):
             'server_id': self.pk,
         }
 
-    def _set_status(self, status):
+    def _set_status(self, status, commit=True):
         """
         Update the current status variable, to be called when a status change is detected
         """
@@ -147,7 +150,8 @@ class Server(ValidateModelMixin, TimeStampedModel):
 
         self.status = status
         self.logger.info('Changed status: %s', self.status)
-        self.save()
+        if commit:
+            self.save()
         return self.status
 
     def sleep_until_status(self, target_status):
@@ -175,7 +179,7 @@ class Server(ValidateModelMixin, TimeStampedModel):
             'server_pk': self.pk,
         })
 
-    def update_status(self, provisioned=False, rebooting=False, provisioning_failure=False):
+    def update_status(self, provisioned=False, rebooting=False, error=None):
         """
         Check the current status and update it if it has changed
         """
@@ -222,33 +226,38 @@ class OpenStackServer(Server):
 
         return public_addr['addr']
 
-    def update_status(self, provisioned=False, rebooting=False, provisioning_failure=False):
+    def update_status(self, provisioned=False, rebooting=False, error=None):
         """
         Refresh the status by querying the openstack server via nova
         """
         # TODO: Check when server is stopped or terminated
         os_server = self.os_server
         self.logger.debug('Updating status from nova (currently %s):\n%s', self.status, to_json(os_server))
+        if error is None:
+            self.error = None
 
         if self.status == self.STARTED:
             self.logger.debug('OpenStack: loaded="%s" status="%s"', os_server._loaded, os_server.status)
             if os_server._loaded and os_server.status == 'ACTIVE':
-                self._set_status(self.ACTIVE)
+                self._set_status(self.ACTIVE, commit=False)
 
         elif self.status == self.ACTIVE and is_port_open(self.public_ip, 22):
-            self._set_status(self.BOOTED)
+            self._set_status(self.BOOTED, commit=False)
 
         elif self.status == self.BOOTED:
             if provisioned:
-                self._set_status(self.PROVISIONED)
-            elif provisioning_failure:
-                self._set_status(self.PROVISIONING_FAILURE)
+                self._set_status(self.PROVISIONED, commit=False)
+            elif error:
+                self._set_status(self.ERROR, commit=False)
+                self.error = error
 
-        elif self.status in (self.PROVISIONED, self.PROVISIONING_FAILURE, self.READY) and rebooting:
-            self._set_status(self.REBOOTING)
+        elif self.status in (self.PROVISIONED, self.ERROR, self.READY) and rebooting:
+            self._set_status(self.REBOOTING, commit=False)
 
         elif self.status == self.REBOOTING and not rebooting and is_port_open(self.public_ip, 22):
-            self._set_status(self.READY)
+            self._set_status(self.READY, commit=False)
+
+        self.save()
 
         return self.status
 

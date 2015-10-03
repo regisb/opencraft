@@ -30,7 +30,8 @@ from instance.models.instance import InconsistentInstanceState, OpenEdXInstance
 from instance.tests.base import TestCase
 from instance.tests.models.factories.instance import OpenEdXInstanceFactory
 from instance.tests.models.factories.server import (
-    StartedOpenStackServerFactory, BootedOpenStackServerFactory, patch_os_server)
+    StartedOpenStackServerFactory, BootedOpenStackServerFactory,
+    ErrorOpenStackServerFactory, patch_os_server)
 
 
 # Tests #######################################################################
@@ -82,6 +83,16 @@ class InstanceTestCase(TestCase):
         server.status = server.BOOTED
         server.save()
         self.assertEqual(instance.status, instance.BOOTED)
+
+    def test_error(self):
+        """
+        Instance status in error
+        """
+        instance = OpenEdXInstanceFactory()
+        self.assertEqual(instance.status, instance.EMPTY)
+        ErrorOpenStackServerFactory(instance=instance)
+        self.assertEqual(instance.status, instance.ERROR)
+        self.assertEqual(instance.error, instance.ERR_PROVISIONING_FAILED)
 
     def test_status_terminated(self):
         """
@@ -430,7 +441,8 @@ class OpenEdXInstanceTestCase(TestCase):
         mock_server_start.side_effect = server_start
 
         server = instance.provision()[0]
-        self.assertEqual(server.status, Server.PROVISIONING_FAILURE)
+        self.assertEqual(server.status, Server.ERROR)
+        self.assertEqual(server.error, Server.ERR_PROVISIONING_FAILED)
 
     @patch_os_server
     @patch('instance.models.server.OpenStackServer.update_status', autospec=True)

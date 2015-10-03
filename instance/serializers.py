@@ -47,6 +47,7 @@ class OpenStackServerSerializer(serializers.ModelSerializer):
             'modified',
             'openstack_id',
             'status',
+            'error',
         )
 
 
@@ -80,6 +81,7 @@ class OpenEdXInstanceSerializer(serializers.ModelSerializer):
             'protocol',
             'repository_url',
             'status',
+            'error',
             'studio_url',
             'sub_domain',
             'url',
