@@ -28,6 +28,7 @@ import uuid
 from instance.models.instance import OpenEdXInstance
 from instance.tests.decorators import patch_git_checkout
 from instance.tests.integration.base import IntegrationTestCase
+from instance.tests.integration.factories.instance import OpenEdXInstanceFactory
 from instance.tasks import provision_instance
 
 
@@ -41,21 +42,7 @@ class InstanceIntegrationTestCase(IntegrationTestCase):
         """
         Provision an instance
         """
-        uid = str(uuid.uuid4())[:8]
-        instance = OpenEdXInstance.objects.create(
-            sub_domain='{}.integration'.format(uid),
-            name='Integration - test_provision_instance',
-            fork_name='edx/edx-platform',
-            ref_type='tags',
-            branch_name='named-release/cypress', # Use a known working version
-            ansible_source_repo_url='https://github.com/open-craft/configuration.git',
-            configuration_version='integration',
-            ansible_playbook_name='opencraft_integration',
-            forum_version='named-release/cypress',
-            notifier_version='named-release/cypress',
-            xqueue_version='named-release/cypress',
-            certs_version='named-release/cypress',
-        )
+        instance = OpenEdXInstanceFactory(name='Integration - test_provision_instance')
         provision_instance(instance.pk)
         self.assertEqual(instance.status, 'ready')
 
@@ -71,40 +58,12 @@ class InstanceIntegrationFailureTestCase(IntegrationTestCase):
         """
         git_working_dir.return_value = os.path.join(os.path.dirname(__file__), "ansible")
 
-        uid = str(uuid.uuid4())[:8]
-        instance = OpenEdXInstance.objects.create(
-            sub_domain='{}.integration'.format(uid),
-            name='Integration - test_ansible_failure',
-            fork_name='edx/edx-platform',
-            ref_type='tags',
-            branch_name='named-release/cypress', # Use a known working version
-            ansible_source_repo_url='https://github.com/open-craft/configuration.git',
-            configuration_version='integration',
-            ansible_playbook_name='failure',
-            forum_version='named-release/cypress',
-            notifier_version='named-release/cypress',
-            xqueue_version='named-release/cypress',
-            certs_version='named-release/cypress',
-        )
+        instance = OpenEdXInstanceFactory(name='Integration - test_ansible_failure')
         provision_instance(instance.pk)
         self.assertEqual(instance.status, OpenEdXInstance.ERROR)
         self.assertEqual(instance.error, OpenEdXInstance.ERR_PROVISIONING_FAILED)
 
-        uid = str(uuid.uuid4())[:8]
-        instance = OpenEdXInstance.objects.create(
-            sub_domain='{}.integration'.format(uid),
-            name='Integration - test_ansible_failure',
-            fork_name='edx/edx-platform',
-            ref_type='tags',
-            branch_name='named-release/cypress', # Use a known working version
-            ansible_source_repo_url='https://github.com/open-craft/configuration.git',
-            configuration_version='integration',
-            ansible_playbook_name='failignore',
-            forum_version='named-release/cypress',
-            notifier_version='named-release/cypress',
-            xqueue_version='named-release/cypress',
-            certs_version='named-release/cypress',
-        )
+        instance = OpenEdXInstanceFactory(name='Integration - test_ansible_failignore')
         provision_instance(instance.pk)
         self.assertEqual(instance.status, OpenEdXInstance.READY)
         self.assertEqual(instance.error, None)
