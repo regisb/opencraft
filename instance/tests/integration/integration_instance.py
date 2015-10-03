@@ -23,7 +23,6 @@ Instance - Integration Tests
 # Imports #####################################################################
 
 import os
-import uuid
 
 from instance.models.instance import OpenEdXInstance
 from instance.tests.decorators import patch_git_checkout
@@ -42,7 +41,8 @@ class InstanceIntegrationTestCase(IntegrationTestCase):
         """
         Provision an instance
         """
-        instance = OpenEdXInstanceFactory(name='Integration - test_provision_instance')
+        OpenEdXInstanceFactory(name='Integration - test_provision_instance')
+        instance = OpenEdXInstance.objects.get()
         provision_instance(instance.pk)
         self.assertEqual(instance.status, 'ready')
 
@@ -53,7 +53,9 @@ class InstanceIntegrationTestCase(IntegrationTestCase):
         """
         git_working_dir.return_value = os.path.join(os.path.dirname(__file__), "ansible")
 
-        instance = OpenEdXInstanceFactory(name='Integration - test_ansible_failure')
+        OpenEdXInstanceFactory(name='Integration - test_ansible_failure',
+                               ansible_playbook_name='failure')
+        instance = OpenEdXInstance.objects.get()
         provision_instance(instance.pk)
         self.assertEqual(instance.status, OpenEdXInstance.ERROR)
         self.assertEqual(instance.error, OpenEdXInstance.ERR_PROVISIONING_FAILED)
@@ -63,7 +65,11 @@ class InstanceIntegrationTestCase(IntegrationTestCase):
         """
         Ensure failures that are ignored doesn't reflect in the instance
         """
-        instance = OpenEdXInstanceFactory(name='Integration - test_ansible_failignore')
+        git_working_dir.return_value = os.path.join(os.path.dirname(__file__), "ansible")
+
+        OpenEdXInstanceFactory(name='Integration - test_ansible_failignore',
+                               ansible_playbook_name='failignore')
+        instance = OpenEdXInstance.objects.get()
         provision_instance(instance.pk)
         self.assertEqual(instance.status, OpenEdXInstance.READY)
         self.assertEqual(instance.error, None)
