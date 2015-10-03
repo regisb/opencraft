@@ -244,7 +244,7 @@ class OpenStackServer(Server):
             elif provisioning_failure:
                 self._set_status(self.PROVISIONING_FAILURE)
 
-        elif self.status in (self.PROVISIONED, self.READY) and rebooting:
+        elif self.status in (self.PROVISIONED, self.PROVISIONING_FAILURE, self.READY) and rebooting:
             self._set_status(self.REBOOTING)
 
         elif self.status == self.REBOOTING and not rebooting and is_port_open(self.public_ip, 22):
