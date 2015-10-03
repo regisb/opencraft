@@ -148,11 +148,6 @@ app.controller("Index", ['$scope', 'Restangular', 'OpenCraftAPI', '$q',
             return error.reverse();
         };
 
-        swampdragon.ready(function() {
-            swampdragon.subscribe('notifier', 'notification', null);
-            swampdragon.subscribe('notifier', 'log', null);
-        });
-
         $scope.init();
     }
 ]);
