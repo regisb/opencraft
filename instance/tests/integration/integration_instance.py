@@ -46,11 +46,6 @@ class InstanceIntegrationTestCase(IntegrationTestCase):
         provision_instance(instance.pk)
         self.assertEqual(instance.status, 'ready')
 
-
-class InstanceIntegrationFailureTestCase(IntegrationTestCase):
-    """
-    Make sure failures to the deployment process are handled
-    """
     @patch_git_checkout
     def test_ansible_failure(self, git_checkout, git_working_dir):
         """
@@ -63,6 +58,11 @@ class InstanceIntegrationFailureTestCase(IntegrationTestCase):
         self.assertEqual(instance.status, OpenEdXInstance.ERROR)
         self.assertEqual(instance.error, OpenEdXInstance.ERR_PROVISIONING_FAILED)
 
+    @patch_git_checkout
+    def test_ansible_failignore(self, git_checkout, git_working_dir):
+        """
+        Ensure failures that are ignored doesn't reflect in the instance
+        """
         instance = OpenEdXInstanceFactory(name='Integration - test_ansible_failignore')
         provision_instance(instance.pk)
         self.assertEqual(instance.status, OpenEdXInstance.READY)
