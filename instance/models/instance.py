@@ -515,11 +515,10 @@ class AnsibleInstanceMixin(models.Model):
                 requirements_path = os.path.join(configuration_repo.working_dir,
                                                  'requirements.txt')
 
-                log = ('Running playbook "{path}/{name}" for instance {instance}, '
-                       'attempt {attempt} of {attempts}:').format(
+                log = ('Running playbook "{path}/{name}" attempt {attempt} of '
+                       '{attempts}:').format(
                            path=playbook_path,
                            name=self.ansible_playbook_name,
-                           instance=self,
                            attempts=self.attempts,
                            attempt=attempt + 1)
                 self.logger.info(log)
