@@ -30,8 +30,7 @@ from instance.models.instance import InconsistentInstanceState, OpenEdXInstance
 from instance.tests.base import TestCase
 from instance.tests.models.factories.instance import OpenEdXInstanceFactory
 from instance.tests.models.factories.server import (
-    StartedOpenStackServerFactory, BootedOpenStackServerFactory,
-    ErrorOpenStackServerFactory, patch_os_server)
+    StartedOpenStackServerFactory, BootedOpenStackServerFactory, patch_os_server)
 
 
 # Tests #######################################################################
@@ -78,21 +77,13 @@ class InstanceTestCase(TestCase):
         """
         instance = OpenEdXInstanceFactory()
         self.assertEqual(instance.status, instance.EMPTY)
+        self.assertEqual(instance.progress, instance.EMPTY)
         server = StartedOpenStackServerFactory(instance=instance)
         self.assertEqual(instance.status, instance.STARTED)
+        self.assertEqual(instance.progress, instance.PROGRESS_SUCCESS)
         server.status = server.BOOTED
         server.save()
         self.assertEqual(instance.status, instance.BOOTED)
-
-    def test_error(self):
-        """
-        Instance status in error
-        """
-        instance = OpenEdXInstanceFactory()
-        self.assertEqual(instance.status, instance.EMPTY)
-        ErrorOpenStackServerFactory(instance=instance)
-        self.assertEqual(instance.status, instance.ERROR)
-        self.assertEqual(instance.error, instance.ERR_PROVISIONING_FAILED)
 
     def test_status_terminated(self):
         """
@@ -112,6 +103,7 @@ class InstanceTestCase(TestCase):
         instance = OpenEdXInstanceFactory()
         StartedOpenStackServerFactory(instance=instance)
         self.assertEqual(instance.status, instance.STARTED)
+        self.assertEqual(instance.progress, instance.PROGRESS_SUCCESS)
         StartedOpenStackServerFactory(instance=instance)
         with self.assertRaises(InconsistentInstanceState):
             instance.status #pylint: disable=pointless-statement
@@ -438,11 +430,12 @@ class OpenEdXInstanceTestCase(TestCase):
             Make sure we get the server in the BOOTED state when it is started
             """
             self.status = Server.BOOTED
+            self.progress = Server.PROGRESS_SUCCESS
         mock_server_start.side_effect = server_start
 
         server = instance.provision()[0]
-        self.assertEqual(server.status, Server.ERROR)
-        self.assertEqual(server.error, Server.ERR_PROVISIONING_FAILED)
+        self.assertEqual(server.status, Server.PROVISIONING)
+        self.assertEqual(server.progress, Server.PROGRESS_FAILED)
 
     @patch_os_server
     @patch('instance.models.server.OpenStackServer.update_status', autospec=True)
@@ -461,7 +454,7 @@ class OpenEdXInstanceTestCase(TestCase):
             OpenStackServer.STARTED,
             OpenStackServer.BOOTED,
             OpenStackServer.BOOTED,
-            OpenStackServer.PROVISIONED,
+            OpenStackServer.PROVISIONING,
             OpenStackServer.REBOOTING,
             OpenStackServer.READY,
         ]
@@ -470,6 +463,7 @@ class OpenEdXInstanceTestCase(TestCase):
         def update_status(self, provisioned=False, rebooting=False):
             """ Simulate status progression successive runs """
             self.status = status_queue.pop()
+            self.progress = self.PROGRESS_SUCCESS
         mock_update_status.side_effect = update_status
 
         with patch('instance.models.server.OpenStackServer.start'):

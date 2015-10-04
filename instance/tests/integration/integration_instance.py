@@ -57,8 +57,8 @@ class InstanceIntegrationTestCase(IntegrationTestCase):
                                ansible_playbook_name='failure')
         instance = OpenEdXInstance.objects.get()
         provision_instance(instance.pk)
-        self.assertEqual(instance.status, OpenEdXInstance.ERROR)
-        self.assertEqual(instance.error, OpenEdXInstance.ERR_PROVISIONING_FAILED)
+        self.assertEqual(instance.status, OpenEdXInstance.PROVISIONING)
+        self.assertEqual(instance.progress, OpenEdXInstance.PROGRESS_FAILED)
 
     @patch_git_checkout
     def test_ansible_failignore(self, git_checkout, git_working_dir):
@@ -72,4 +72,4 @@ class InstanceIntegrationTestCase(IntegrationTestCase):
         instance = OpenEdXInstance.objects.get()
         provision_instance(instance.pk)
         self.assertEqual(instance.status, OpenEdXInstance.READY)
-        self.assertEqual(instance.error, None)
+        self.assertEqual(instance.progress, OpenEdXInstance.PROGRESS_SUCCESS)

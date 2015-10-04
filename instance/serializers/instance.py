@@ -62,7 +62,7 @@ class OpenEdXInstanceSerializer(serializers.ModelSerializer):
             'protocol',
             'repository_url',
             'status',
-            'error',
+            'progress',
             'studio_url',
             'sub_domain',
             'url',

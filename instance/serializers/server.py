@@ -46,5 +46,5 @@ class OpenStackServerSerializer(serializers.ModelSerializer):
             'modified',
             'openstack_id',
             'status',
-            'error',
+            'progress',
         )

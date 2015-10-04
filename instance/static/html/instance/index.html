@@ -25,9 +25,11 @@
           ng-class="{active: instance == selected.instance}">
         <a ng-click="select('instance', instance)">{{ instance.name }}</a>
         <div class="status-icon" ng-switch="instance.status">
-          <i class="fa fa-ellipsis-h" tooltip-placement="right" tooltip="Provisioning in progress" ng-switch-default></i>
-          <i class="fa fa-times" tooltip-placement="right" tooltip="Error" ng-switch-when="error"></i>
-          <i class="fa fa-check" tooltip-placement="right" tooltip="Ready" ng-switch-when="ready"></i>
+          <i class="fa fa-ellipsis-h" tooltip-placement="top" tooltip="Provisioning in progress" ng-switch-default></i>
+        </div>
+        <div class="status-icon" ng-switch="instance.progress">
+          <i class="fa fa-times" tooltip-placement="top" tooltip="Failed" ng-switch-when="failed"></i>
+          <i class="fa fa-check" tooltip-placement="top" tooltip="Success" ng-switch-when="success"></i>
         </div>
       </li>
       <li class="divider"></li>
@@ -63,18 +65,22 @@
               </li>
             </ul>
           </div>
-          <div ng-switch="selected.instance.status">
-            <button class="button reprovision" ng-switch-when="ready"
-                                               ng-click="provision(selected.instance)">
-              Reprovision
-            </button>
-            <button class="button reprovision" ng-switch-when="error"
-                                               ng-click="provision(selected.instance)">
-              Reprovision
-            </button>
-            <i class="fa fa-2x fa-ellipsis-h" tooltip-placement="right" tooltip="Provisioning in progress" ng-switch-default></i>
-            <i class="fa fa-2x fa-times" tooltip-placement="right" tooltip="Error" ng-switch-when="error"></i>
-            <i class="fa fa-2x fa-check" tooltip-placement="right" tooltip="Ready" ng-switch-when="ready"></i>
+          <div class="large-2 columns">
+            <div class="status-icon" ng-switch="selected.instance.status">
+              <button class="button reprovision" ng-switch-when="ready"
+                                                 ng-click="provision(selected.instance)">
+                Reprovision
+              </button>
+              <button class="button reprovision" ng-switch-when="error"
+                                                 ng-click="provision(selected.instance)">
+                Reprovision
+              </button>
+              <i class="fa fa-2x fa-ellipsis-h" tooltip-placement="top" tooltip="Provisioning in progress" ng-switch-default></i>
+            </div>
+            <div class="status-icon" ng-switch="selected.instance.progress">
+              <i class="fa fa-2x fa-times" tooltip-placement="top" tooltip="Failed" ng-switch-when="failed"></i>
+              <i class="fa fa-2x fa-check" tooltip-placement="top" tooltip="Success" ng-switch-when="success"></i>
+            </div>
           </div>
         </div>
       </div>

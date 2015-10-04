@@ -87,7 +87,7 @@ class Instance(ValidateModelMixin, TimeStampedModel):
     STARTED = 'started'
     ACTIVE = 'active'
     BOOTED = 'booted'
-    PROVISIONED = 'provisioned'
+    PROVISIONING = 'provisioning'
     ERROR = 'error'
     REBOOTING = 'rebooting'
     READY = 'ready'
@@ -96,7 +96,9 @@ class Instance(ValidateModelMixin, TimeStampedModel):
     STOPPED = 'stopped'
     TERMINATING = 'terminating'
 
-    ERR_PROVISIONING_FAILED = 'provisioning_failed'
+    PROGRESS_RUNNING = 'running'
+    PROGRESS_SUCCESS = 'success'
+    PROGRESS_FAILED = 'failed'
 
     sub_domain = models.CharField(max_length=50)
     email = models.EmailField(default='contact@example.com')
@@ -166,13 +168,13 @@ class Instance(ValidateModelMixin, TimeStampedModel):
         return self.EMPTY
 
     @property
-    def error(self):
+    def progress(self):
         """
-        Instance error
+        Instance's current status progress
         """
         server = self.current_server
         if server:
-            return server.error
+            return server.progress
         return self.EMPTY
 
     @property
@@ -632,7 +634,7 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         server.sleep_until_status(server.BOOTED)
         log, exit_code = self.deploy()
         if exit_code != 0:
-            server.update_status(error=server.ERR_PROVISIONING_FAILED)
+            server.update_status(provisioned=True, failed=True)
             return (server, log)
 
         server.update_status(provisioned=True)
