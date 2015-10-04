@@ -105,13 +105,18 @@ describe('Instance app', function () {
 
             it('instance_log', function() {
                 $scope.select('instance', $scope.instanceList[0]);
-                expect($scope.selected.instance.log_entries).not.toContain('### Added via websocket ###');
+                var log_entry = {
+                    level: 'INFO',
+                    created: new Date(2015, 10, 4, 10, 45, 0),
+                    text: '### Added via websocket ###'
+                };
+                expect($scope.selected.instance.log_entries).not.toContain(log_entry);
                 $scope.handleChannelMessage('notifier', {data: {
                     type: 'instance_log',
                     instance_id: 2,
-                    log_entry: '### Added via websocket ###'
+                    log_entry: log_entry
                 }});
-                expect($scope.selected.instance.log_entries).toContain('### Added via websocket ###');
+                expect($scope.selected.instance.log_entries).toContain(log_entry);
             });
         });
     });
