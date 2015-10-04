@@ -23,7 +23,7 @@ CDNFONTS = https://fortawesome.github.io/Font-Awesome/assets/
 
 # Files #######################################################################
 
-all: font-awesome-4.4.0.zip
+all: js_external font-awesome-4.4.0.zip
  
 font-awesome-4.4.0.zip:
 	$(GET) $@ $(CDNFONTS)/font-awesome-4.4.0.zip
@@ -31,3 +31,5 @@ font-awesome-4.4.0.zip:
 	cp font-awesome-4.4.0/fonts/* fonts/
 	cp font-awesome-4.4.0/css/* css/
 	rm -r font-awesome-4.4.0*
+js_external:
+	$(MAKE) -C js

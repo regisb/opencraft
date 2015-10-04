@@ -40,10 +40,9 @@ clean:
 	find -name '*~' -delete
 	find -name '__pycache__' -type d -delete
 	rm -rf .coverage build
-	find static/js/external -type f -not -name 'Makefile' -not -name '.gitignore' -delete
 	find static/external -type f -not -name 'Makefile' -not -name '.gitignore' -delete
 
-collectstatic: clean static_external js_external
+collectstatic: clean static_external
 	honcho run ./manage.py collectstatic --noinput
 
 migrate: clean
@@ -58,7 +57,7 @@ migration_autogen: clean
 run: clean migration_check collectstatic
 	honcho start --concurrency "worker=$(WORKERS)"
 
-rundev: clean migration_check static_external js_external
+rundev: clean migration_check static_external
 	honcho start -f Procfile.dev
 
 shell:
@@ -87,10 +86,10 @@ test_integration: clean
 		echo -e "\nIntegration tests skipped (create a '.env.integration' file to run them)" ; \
 	fi
 
-test_js: clean static_external js_external
+test_js: clean static_external
 	cd instance/tests/js && jasmine-ci --logs --browser firefox
 
-test_js_web: clean static_external js_external
+test_js_web: clean static_external
 	cd instance/tests/js && jasmine --host 0.0.0.0
 
 test: clean test_prospector test_unit test_js test_integration
@@ -101,9 +100,6 @@ test_one: clean
 
 
 # Files #######################################################################
-
-js_external:
-	$(MAKE) -C static/js/external
 
 static_external:
 	$(MAKE) -C static/external
