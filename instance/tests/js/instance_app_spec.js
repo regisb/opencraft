@@ -119,7 +119,7 @@ describe('Instance app', function () {
                 expect($scope.selected.instance.log_entries).toContain(log_entry);
             });
 
-            it('error_log', function() {
+            it('errors', function() {
                 $scope.select('instance', $scope.instanceList[0]);
                 var log_entry_error = {
                     level: 'ERROR',
@@ -141,8 +141,8 @@ describe('Instance app', function () {
                     instance_id: 2,
                     log_entry: log_entry_info
                 }});
-                expect($scope.error_log()).toContain(log_entry_error);
-                expect($scope.error_log()).not.toContain(log_entry_info);
+                expect($scope.selected.instance.errors).toContain(log_entry_error);
+                expect($scope.selected.instance.errors).not.toContain(log_entry_info);
             });
         });
     });

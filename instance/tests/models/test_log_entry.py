@@ -132,3 +132,47 @@ class LogEntryTestCase(TestCase):
             'instance_id': instance.pk,
             'server_id': server.pk,
         })
+
+    def test_error_entries(self):
+        """
+        Check `errors` output for combination of instance & server logs
+        """
+        instance = OpenEdXInstanceFactory(sub_domain='my.instance')
+        server = OpenStackServerFactory(instance=instance, openstack_id='vm1_id')
+
+        with freeze_time("2015-08-05 18:07:00"):
+            instance.logger.info('Line #1, on instance')
+
+        with freeze_time("2015-08-05 18:07:01"):
+            instance.logger.error('Line #2, on server')
+
+        with freeze_time("2015-08-05 18:07:02"):
+            instance.logger.debug('Line #3, on instance (debug, not published by default)')
+
+        with freeze_time("2015-08-05 18:07:03"):
+            server.logger.critical('Line #4, on instance')
+
+        with freeze_time("2015-08-05 18:07:04"):
+            instance.logger.warn('Line #5, on instance (warn)')
+
+        with freeze_time("2015-08-05 18:07:05"):
+            server.logger.info('Line #6, on server')
+
+        with freeze_time("2015-08-05 18:07:06"):
+            instance.logger.critical('Line #7, exception')
+
+        entries = instance.errors
+        self.assertEqual(entries[0].level, "ERROR")
+        self.assertEqual(entries[0].created.strftime("%Y-%m-%d %H:%M:%S"), "2015-08-05 18:07:01")
+        self.assertEqual(entries[0].text,
+                         "instance.models.instance  | instance=my.instance | Line #2, on server")
+
+        self.assertEqual(entries[1].level, "CRITICAL")
+        self.assertEqual(entries[1].created.strftime("%Y-%m-%d %H:%M:%S"), "2015-08-05 18:07:03")
+        self.assertEqual(entries[1].text,
+                         "instance.models.server    | instance=my.instance,server=vm1_id | Line #4, on instance")
+
+        self.assertEqual(entries[2].level, "CRITICAL")
+        self.assertEqual(entries[2].created.strftime("%Y-%m-%d %H:%M:%S"), "2015-08-05 18:07:06")
+        self.assertEqual(entries[2].text,
+                         "instance.models.instance  | instance=my.instance | Line #7, exception")

@@ -197,22 +197,13 @@ class Instance(ValidateModelMixin, TimeStampedModel):
         if not self.base_domain:
             self.base_domain = settings.INSTANCES_BASE_DOMAIN
 
-    @property
-    def log_entries(self):
+    @staticmethod
+    def _sort_log_entries(server_logs, instance_logs):
         """
-        Combines the instance and server log outputs in chronological order
-        Currently only supports one non-terminated server at a time
-        Returned as a list of string
+        Helper method to combine the instance and server log outputs in chronological order
         """
-        current_server = self.active_server_set.get()
-        # TODO: Filter out log entries for which the user doesn't have view rights
-        server_log_entry_set = current_server.log_entry_set.order_by('pk')\
-                                                           .iterator()
-        instance_log_entry_set = self.log_entry_set.order_by('pk')\
-                                                   .iterator()
-
-        next_server_log_entry = partial(next, server_log_entry_set, None)
-        next_instance_log_entry = partial(next, instance_log_entry_set, None)
+        next_server_log_entry = partial(next, server_logs, None)
+        next_instance_log_entry = partial(next, instance_logs, None)
 
         log = []
         instance_log_entry = next_instance_log_entry()
@@ -235,6 +226,35 @@ class Instance(ValidateModelMixin, TimeStampedModel):
             server_log_entry = next_server_log_entry()
 
         return log
+
+    @property
+    def log_entries(self):
+        """
+        Return the list of log entry instances for the instance and its current active server
+        """
+        current_server = self.active_server_set.get()
+        # TODO: Filter out log entries for which the user doesn't have view rights
+        server_log_entry_set = current_server.log_entry_set.order_by('pk')\
+                                                           .iterator()
+        instance_log_entry_set = self.log_entry_set.order_by('pk')\
+                                                   .iterator()
+        return Instance._sort_log_entries(server_log_entry_set, instance_log_entry_set)
+
+    @property
+    def errors(self):
+        """
+        Return the list of error or critical log entry instances for the instance and its current
+        active server
+        """
+        current_server = self.active_server_set.get()
+        # TODO: Filter out log entries for which the user doesn't have view rights
+        server_log_entry_set = current_server.log_entry_set.filter(level__in=['ERROR', 'CRITICAL'])\
+                                                           .order_by('pk')\
+                                                           .iterator()
+        instance_log_entry_set = self.log_entry_set.filter(level__in=['ERROR', 'CRITICAL'])\
+                                                   .order_by('pk')\
+                                                   .iterator()
+        return Instance._sort_log_entries(server_log_entry_set, instance_log_entry_set)
 
 
 # Git #########################################################################

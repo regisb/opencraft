@@ -122,31 +122,14 @@ app.controller("Index", ['$scope', 'Restangular', 'OpenCraftAPI', '$q',
             } else if(message.data.type === 'instance_log') {
                 if($scope.selected.instance && $scope.selected.instance.id === message.data.instance_id) {
                     $scope.$apply(function(){
-                        $scope.selected.instance.log_entries.push(message.data.log_entry);
+                        if (message.data.log_entry.level == 'ERROR' || message.data.log_entry.level == 'CRITICAL') {
+                            $scope.selected.instance.errors.push(message.data.log_entry);
+                        } else {
+                            $scope.selected.instance.log_entries.push(message.data.log_entry);
+                        }
                     });
                 }
             }
-        };
-
-        $scope.error_log = function() {
-            if (!$scope.selected.instance) {
-                return;
-            }
-            var log_entries = $scope.selected.instance.log_entries;
-            var error = [];
-            var counting = false;
-            for (var i = log_entries.length; i > 0; i--) {
-                var entry = log_entries[i - 1];
-                if (entry.level != 'ERROR' && entry.level != 'CRITICAL') {
-                    if (counting) {
-                        return error.reverse();
-                    }
-                } else {
-                    error.push(entry);
-                    counting = true;
-                }
-            }
-            return error.reverse();
         };
 
         $scope.init();

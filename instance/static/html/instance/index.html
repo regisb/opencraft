@@ -88,7 +88,7 @@
     <div class="row">
       <tabset>
         <tab heading="Log">
-          <pre ng-if="selected.instance.status == 'error'" class="error-log" ng-repeat="line in error_log() track by $index">{{ line.created | date:'yyyy-MM-dd HH:mm:ssZ' }} | {{ line.level }} | {{ line.text }}</pre><br/>
+          <pre ng-if="selected.instance.status_progress == 'failed'" class="error-log" ng-repeat="line in select.instance.errors track by $index">{{ line.created | date:'yyyy-MM-dd HH:mm:ssZ' }} | {{ line.level }} | {{ line.text }}</pre><br/>
           <pre class="instance-log" ng-repeat="line in selected.instance.log_entries track by $index">{{ line.created | date:'yyyy-MM-dd HH:mm:ssZ' }} | {{ line.level }} | {{ line.text }}</pre>
         </tab>
         <tab heading="Configuration">
