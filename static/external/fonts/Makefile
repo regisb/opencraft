@@ -18,18 +18,28 @@
 # Variables ###################################################################
 
 GET = wget -qO
-CDNFONTS = https://fortawesome.github.io/Font-Awesome/assets/
+CDNJS = https://cdnjs.cloudflare.com/ajax/libs
 
 
 # Files #######################################################################
 
-all: js_external css_external fonts_external
- 
-js_external:
-	$(MAKE) -C js
+all: FontAwesome.otf fontawesome-webfont.eot fontawesome-webfont.svg fontawesome-webfont.ttf \
+	 fontawesome-webfont.woff fontawesome-webfont.woff2
 
-css_external:
-	$(MAKE) -C css
+FontAwesome.otf:
+	$(GET) $@ $(CDNJS)/font-awesome/4.4.0/fonts/FontAwesome.otf
 
-fonts_external:
-	$(MAKE) -C fonts
+fontawesome-webfont.eot:
+	$(GET) $@ $(CDNJS)/font-awesome/4.4.0/fonts/fontawesome-webfont.eot
+
+fontawesome-webfont.svg:
+	$(GET) $@ $(CDNJS)/font-awesome/4.4.0/fonts/fontawesome-webfont.svg
+
+fontawesome-webfont.ttf:
+	$(GET) $@ $(CDNJS)/font-awesome/4.4.0/fonts/fontawesome-webfont.ttf
+
+fontawesome-webfont.woff:
+	$(GET) $@ $(CDNJS)/font-awesome/4.4.0/fonts/fontawesome-webfont.woff
+
+fontawesome-webfont.woff2:
+	$(GET) $@ $(CDNJS)/font-awesome/4.4.0/fonts/fontawesome-webfont.woff2

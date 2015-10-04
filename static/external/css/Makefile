@@ -18,18 +18,15 @@
 # Variables ###################################################################
 
 GET = wget -qO
-CDNFONTS = https://fortawesome.github.io/Font-Awesome/assets/
+CDNJS = https://cdnjs.cloudflare.com/ajax/libs
 
 
 # Files #######################################################################
 
-all: js_external css_external fonts_external
- 
-js_external:
-	$(MAKE) -C js
+all: font-awesome.min.css font-awesome.css.map
 
-css_external:
-	$(MAKE) -C css
+font-awesome.min.css:
+	$(GET) $@ $(CDNJS)/font-awesome/4.4.0/css/font-awesome.min.css
 
-fonts_external:
-	$(MAKE) -C fonts
+font-awesome.css.map:
+	$(GET) $@ $(CDNJS)/font-awesome/4.4.0/css/font-awesome.css.map
