@@ -155,7 +155,8 @@ class Instance(ValidateModelMixin, TimeStampedModel):
             return
         elif active_server_set.count() > 1:
             raise InconsistentInstanceState('Multiple servers are active, which is unsupported')
-        return active_server_set[0]
+        else:
+            return active_server_set[0]
 
     @property
     def status(self):
