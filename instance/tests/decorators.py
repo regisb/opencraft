@@ -19,6 +19,7 @@
 """
 Decorators - Useful decorators for unit tests
 """
+from functools import wraps
 from unittest import mock
 
 
@@ -27,6 +28,7 @@ def patch_git_checkout(func):
     Patch git checkout process in order to allow mocking up the checkout
     process and the working directory
     """
+    @wraps(func)
     def _wrap(*args, **kwargs):
         """
         Calls the given function with extra parameters for git checkout
