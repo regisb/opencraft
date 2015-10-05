@@ -397,58 +397,6 @@ class OpenEdXInstanceTestCase(TestCase):
         self.assertIn('XQUEUE_AWS_SECRET_ACCESS_KEY: test-s3-secret-access-key', instance.vars_str)
         self.assertIn('XQUEUE_S3_BUCKET: test-s3-bucket-name', instance.vars_str)
 
-    def test_vars_str_database_settings(self):
-        """
-        Add database settings to ansible vars if the database_url attribute is set
-        """
-        instance = OpenEdXInstanceFactory(
-            database_url='mysql://user:pass@db.example.com:3306/dbname',
-        )
-        self.assertIn('EDXAPP_MYSQL_USER: user', instance.vars_str)
-        self.assertIn('EDXAPP_MYSQL_PASSWORD: pass', instance.vars_str)
-        self.assertIn('EDXAPP_MYSQL_HOST: db.example.com', instance.vars_str)
-        self.assertIn('EDXAPP_MYSQL_PORT: 3306', instance.vars_str)
-        self.assertIn('EDXAPP_MYSQL_DB_NAME: dbname', instance.vars_str)
-
-    def test_vars_str_database_settings_optional_data(self):
-        """
-        Ansible vars should not be added for excluded elements of database_url
-        """
-        instance = OpenEdXInstanceFactory(
-            database_url='mysql://user@db.example.com/dbname',
-        )
-        self.assertIn('EDXAPP_MYSQL_USER: user', instance.vars_str)
-        self.assertNotIn('EDXAPP_MYSQL_PASSWORD', instance.vars_str)
-        self.assertIn('EDXAPP_MYSQL_HOST: db.example.com', instance.vars_str)
-        self.assertNotIn('EDXAPP_MYSQL_PORT', instance.vars_str)
-        self.assertIn('EDXAPP_MYSQL_DB_NAME: dbname', instance.vars_str)
-
-    def test_vars_str_mongo_settings(self):
-        """
-        Add mongo settings to ansible vars if the mongo_url attribute is set
-        """
-        instance = OpenEdXInstanceFactory(
-            mongo_url='mongo://user:pass@mongo.example.com:27017/',
-        )
-        self.assertIn('EDXAPP_MONGO_USER: user', instance.vars_str)
-        self.assertIn('EDXAPP_MONGO_PASSWORD: pass', instance.vars_str)
-        self.assertIn('EDXAPP_MONGO_HOSTS: [mongo.example.com]', instance.vars_str)
-        self.assertIn('EDXAPP_MONGO_PORT: 27017', instance.vars_str)
-        self.assertNotIn('EDXAPP_MONGO_DB_NAME', instance.vars_str)
-
-    def test_vars_str_mongo_settings_optional_data(self):
-        """
-        Ansible vars should not be added for excluded elements of mongo_url
-        """
-        instance = OpenEdXInstanceFactory(
-            mongo_url='mongo:///dbname',
-        )
-        self.assertNotIn('EDXAPP_MONGO_USER', instance.vars_str)
-        self.assertNotIn('EDXAPP_MONGO_PASSWORD', instance.vars_str)
-        self.assertNotIn('EDXAPP_MONGO_HOSTS', instance.vars_str)
-        self.assertNotIn('EDXAPP_MONGO_PORT', instance.vars_str)
-        self.assertIn('EDXAPP_MONGO_DB_NAME: dbname', instance.vars_str)
-
     @patch_os_server
     @patch('instance.models.server.openstack.create_server')
     @patch('instance.models.server.OpenStackServer.update_status')
