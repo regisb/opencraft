@@ -38,24 +38,22 @@ class UtilsTestCase(TestCase):
         """
         Ensure that the lines read are in the order they were written
         """
-        with NamedTemporaryFile() as wfile1:
-            with NamedTemporaryFile() as wfile2:
+        with NamedTemporaryFile() as wfile1, NamedTemporaryFile() as wfile2:
+            rfile1 = open(wfile1.name, "rb")
+            rfile2 = open(wfile2.name, "rb")
+            lines = read_files(rfile1, rfile2)
 
-                rfile1 = open(wfile1.name, "rb")
-                rfile2 = open(wfile2.name, "rb")
-                lines = read_files(rfile1, rfile2)
+            wfile1.write(b"FILE1,LINE1\n")
+            wfile2.write(b"FILE2,LINE1\n")
+            wfile1.write(b"FILE1,LINE2\n")
+            wfile2.write(b"FILE2,LINE2\n")
+            wfile2.write(b"FILE2,LINE3\n")
 
-                wfile1.write(b"FILE1,LINE1\n")
-                wfile2.write(b"FILE2,LINE1\n")
-                wfile1.write(b"FILE1,LINE2\n")
-                wfile2.write(b"FILE2,LINE2\n")
-                wfile2.write(b"FILE2,LINE3\n")
+            wfile1.flush()
+            wfile2.flush()
 
-                wfile1.flush()
-                wfile2.flush()
-
-                self.assertEqual(next(lines), (rfile1, b"FILE1,LINE1\n"))
-                self.assertEqual(next(lines), (rfile2, b"FILE2,LINE1\n"))
-                self.assertEqual(next(lines), (rfile1, b"FILE1,LINE2\n"))
-                self.assertEqual(next(lines), (rfile2, b"FILE2,LINE2\n"))
-                self.assertEqual(next(lines), (rfile2, b"FILE2,LINE3\n"))
+            self.assertEqual(next(lines), (rfile1, b"FILE1,LINE1\n"))
+            self.assertEqual(next(lines), (rfile2, b"FILE2,LINE1\n"))
+            self.assertEqual(next(lines), (rfile1, b"FILE1,LINE2\n"))
+            self.assertEqual(next(lines), (rfile2, b"FILE2,LINE2\n"))
+            self.assertEqual(next(lines), (rfile2, b"FILE2,LINE3\n"))
