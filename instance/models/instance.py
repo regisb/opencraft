@@ -32,7 +32,6 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.signals import pre_save
 from django.template import loader
-from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 from django_extensions.db.models import TimeStampedModel
 
@@ -422,10 +421,8 @@ class GitHubInstanceMixin(VersionControlInstanceMixin):
         """
         Update this instance with settings from the given pull request
         """
-        truncated_title = truncatewords(pr.title, 4)
-        #pylint: disable=attribute-defined-outside-init
-        self.name = 'PR#{pr.number}: {truncated_title} ({pr.username}) - {i.reference_name}'\
-                    .format(pr=pr, i=self, truncated_title=truncated_title)
+        self.name = ('PR#{pr.number}: {pr.truncated_title}' +  #pylint: disable=attribute-defined-outside-init
+                     ' ({pr.username}) - {i.reference_name}').format(pr=pr, i=self)
         self.github_pr_number = pr.number
 
 

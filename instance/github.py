@@ -26,6 +26,7 @@ import re
 import requests
 
 from django.conf import settings
+from django.template.defaultfilters import truncatewords
 
 
 # Logging #####################################################################
@@ -155,6 +156,13 @@ class PR:
         self.title = title
         self.username = username
         self.body = body
+
+    @property
+    def truncated_title(self):
+        """
+        This PR's title truncated to 4 words
+        """
+        return truncatewords(self.title, 4)
 
     @property
     def sub_domain(self):
