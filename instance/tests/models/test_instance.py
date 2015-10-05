@@ -23,6 +23,7 @@ OpenEdXInstance model - Tests
 # Imports #####################################################################
 
 import re
+import tempfile
 from mock import call, patch
 
 from instance.models.server import OpenStackServer, Server
@@ -316,11 +317,12 @@ class AnsibleInstanceTestCase(TestCase):
         self.assertNotIn('Vars Instance', instance.vars_str)
         self.assertIn("EDXAPP_CONTACT_EMAIL: vars@example.com", instance.vars_str)
 
+    @patch('instance.models.instance.read_files')
     @patch('instance.models.instance.OpenEdXInstance.vars_str')
     @patch('instance.models.instance.OpenEdXInstance.inventory_str')
     @patch('instance.models.instance.ansible.run_playbook')
     @patch('instance.models.instance.open_repository')
-    def test_deployment(self, mock_open_repo, mock_run_playbook, mock_inventory, mock_vars):
+    def test_deployment(self, mock_open_repo, mock_run_playbook, mock_inventory, mock_vars, mock_read_files):
         """
         Test instance deployment
         """
@@ -337,6 +339,29 @@ class AnsibleInstanceTestCase(TestCase):
             'edx_sandbox.yml',
             username='ubuntu',
         ), mock_run_playbook.mock_calls)
+
+    @patch('instance.models.instance.ansible.run_playbook')
+    def test_run_playbook_logging(self, mock_run_playbook):
+        """
+        Ensure logging routines are working on _run_playbook method
+        """
+        with tempfile.NamedTemporaryFile() as stdout:
+            with tempfile.NamedTemporaryFile() as stderr:
+
+                mock_run_playbook.return_value.__enter__.return_value.stdout = open(stdout.name, "rb")
+                mock_run_playbook.return_value.__enter__.return_value.stderr = open(stderr.name, "rb")
+                mock_run_playbook.return_value.__enter__.return_value.returncode = 0
+
+                stdout.write(b"HELLO\n")
+                stdout.flush()
+                stderr.write(b"HI\n")
+                stderr.flush()
+
+                instance = OpenEdXInstanceFactory()
+                log, returncode = instance._run_playbook("requirements", "playbook")
+
+                self.assertEqual(log, ['HELLO', 'HI'])
+                self.assertEqual(returncode, 0)
 
 
 class OpenEdXInstanceTestCase(TestCase):

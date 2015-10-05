@@ -22,7 +22,6 @@ Instance app models - Instance
 
 # Imports #####################################################################
 
-import itertools
 import logging
 import os
 
@@ -42,6 +41,7 @@ from instance.github import fork_name2tuple, get_username_list_from_team
 from instance.logging import log_exception
 from instance.logger_adapter import InstanceLoggerAdapter
 from instance.repo import open_repository
+from instance.utils import read_files
 
 from instance.models.utils import ValidateModelMixin
 
@@ -515,13 +515,12 @@ class AnsibleInstanceMixin(models.Model):
             self.ansible_playbook_filename,
             username=settings.OPENSTACK_SANDBOX_SSH_USERNAME,
         ) as processus:
-            output = itertools.chain(
-                zip(itertools.repeat(logging.INFO), processus.stdout),
-                zip(itertools.repeat(logging.ERROR), processus.stderr)
-            )
-            for level, line in output:
+            for fd, line in read_files(processus.stdout, processus.stderr):
                 line = line.decode('utf-8').rstrip()
-                self.logger.log(level, line)
+                if fd == processus.stdout:
+                    self.logger.info(line)
+                elif fd == processus.stderr:
+                    self.logger.error(line)
                 log_lines.append(line)
             processus.wait()
             return (log_lines, processus.returncode)
