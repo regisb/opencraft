@@ -157,6 +157,13 @@ class PR:
         self.body = body
 
     @property
+    def sub_domain(self):
+        """
+        The subdomain for this PR
+        """
+        return 'pr{number}.sandbox'.format(number=self.number)
+
+    @property
     def extra_settings(self):
         """
         Extra settings contained in the PR body

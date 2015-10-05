@@ -222,10 +222,8 @@ class GitHubInstanceQuerySet(models.QuerySet):
         """
         Create or update an instance for the given pull request
         """
-        pr_sub_domain = 'pr{number}.sandbox'.format(number=pr.number)
-
         instance, created = self.get_or_create(
-            sub_domain=pr_sub_domain,
+            sub_domain=pr.sub_domain,
             fork_name=pr.fork_name,
             branch_name=pr.branch_name,
         )
