@@ -622,10 +622,6 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         Update this instance with settings from the given pull request
         """
         super().update_from_pr(pr)
-        if pr.database_url:
-            self.database_url = pr.database_url
-        if pr.mongo_url:
-            self.mongo_url = pr.mongo_url
         self.ansible_extra_settings = pr.extra_settings
 
     @log_exception

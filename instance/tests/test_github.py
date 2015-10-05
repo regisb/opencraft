@@ -25,19 +25,14 @@ GitHub - Tests
 import json
 import requests
 import responses
-import yaml
 
 from mock import patch
 
 from instance import github
 from instance.tests.base import TestCase, get_raw_fixture
-from instance.tests.factories.pr import PRFactory
 
 
 # Tests #######################################################################
-
-# Pylint doesn't like factory boy
-#pylint: disable=no-member
 
 class GitHubTestCase(TestCase):
     """
@@ -78,29 +73,6 @@ class GitHubTestCase(TestCase):
         pr_body = "Description\r\nover\r\nlines\r\n- - -\r\n**Settings**\r\nMALFORMED"
         self.assertEqual(github.get_settings_from_pr_body(pr_body), '')
 
-    def test_pr_settings(self):
-        """
-        Parse settings from the PR body as yaml
-        """
-        settings = {'TEST': True,
-                    'DATABASE_URL': 'mysql://user:pass@db.opencraft.com/test',
-                    'MONGO_URL': 'mongo://user:pass@mongo.opencraft.com/test'}
-        pr = PRFactory(body='**Settings**\r\n```yaml\r\n' + yaml.dump(settings) + '```')
-        self.assertEqual(pr.settings, settings)
-        self.assertEqual(pr.database_url, settings['DATABASE_URL'])
-        self.assertEqual(pr.mongo_url, settings['MONGO_URL'])
-        self.assertEqual(yaml.load(pr.extra_settings), {'TEST': True})
-
-    def test_pr_no_settings(self):
-        """
-        Settings should be empty when not given in the PR body
-        """
-        pr = PRFactory(body='')
-        self.assertEqual(pr.settings, {})
-        self.assertIsNone(pr.database_url)
-        self.assertIsNone(pr.mongo_url)
-        self.assertEqual(pr.extra_settings, '')
-
     @responses.activate
     def test_get_pr_by_number(self):
         """
@@ -123,7 +95,7 @@ class GitHubTestCase(TestCase):
         self.assertEqual(pr.number, 8474)
         self.assertEqual(pr.fork_name, 'open-craft/edx-platform')
         self.assertEqual(pr.branch_name, 'smarnach/hide-discussion-tab')
-        self.assertEqual(yaml.load(pr.extra_settings), {'EDXAPP_FEATURES': {'ALLOW': True}})
+        self.assertEqual(pr.extra_settings, 'EDXAPP_FEATURES:\r\n  ALLOW: true\r\n')
         self.assertEqual(pr.username, 'smarnach')
 
     @responses.activate

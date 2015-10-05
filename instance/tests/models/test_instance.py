@@ -360,16 +360,13 @@ class OpenEdXInstanceTestCase(TestCase):
         Create an instance from a pull request
         """
         mock_get_commit_id_from_ref.return_value = '9' * 40
-        settings = 'DATABASE_URL: mysql://db.opencraft.com\r\nMONGO_URL: mongo://mongo.opencraft.com\r\n'
-        pr = PRFactory(body='**Settings**\r\n```\r\n' + settings + '```\r\n')
+        pr = PRFactory()
         instance, created = OpenEdXInstance.objects.update_or_create_from_pr(pr)
         self.assertTrue(created)
         self.assertEqual(instance.fork_name, pr.fork_name)
         self.assertEqual(instance.branch_name, pr.branch_name)
         self.assertRegex(instance.name, r'^PR')
         self.assertEqual(instance.github_pr_number, pr.number)
-        self.assertEqual(instance.database_url, pr.database_url)
-        self.assertEqual(instance.mongo_url, pr.mongo_url)
 
     def test_get_by_fork_name(self):
         """

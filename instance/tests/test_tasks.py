@@ -22,8 +22,6 @@ Worker tasks - Tests
 
 # Imports #####################################################################
 
-import yaml
-
 from mock import patch
 
 from instance import tasks
@@ -62,14 +60,13 @@ class TasksTestCase(TestCase):
         New PR created on the watched repo
         """
         mock_get_username_list.return_value = ['itsjeyd']
-        settings = 'WATCH: true\r\nDATABASE_URL: mysql://db.opencraft.com\r\nMONGO_URL: mongo://mongo.opencraft.com\r\n'
         pr = PRFactory(
             number=234,
             fork_name='watched/fork',
             branch_name='watch-branch',
             title='Watched PR title which is very long',
             username='bradenmacdonald',
-            body='Hello watcher!\n- - -\r\n**Settings**\r\n```\r\n' + settings + '```\r\nMore...',
+            body='Hello watcher!\n- - -\r\n**Settings**\r\n```\r\nWATCH: true\r\n```\r\nMore...',
         )
         mock_get_pr_list_from_username.return_value = [pr]
         mock_get_commit_id_from_ref.return_value = '7' * 40
@@ -81,9 +78,7 @@ class TasksTestCase(TestCase):
         self.assertEqual(instance.fork_name, 'watched/fork')
         self.assertEqual(instance.github_pr_number, 234)
         self.assertEqual(instance.branch_name, 'watch-branch')
-        self.assertEqual(instance.database_url, 'mysql://db.opencraft.com')
-        self.assertEqual(instance.mongo_url, 'mongo://mongo.opencraft.com')
-        self.assertEqual(yaml.load(instance.ansible_extra_settings), {'WATCH': True})
+        self.assertEqual(instance.ansible_extra_settings, 'WATCH: true\r\n')
         self.assertEqual(
             instance.name,
             'PR#234: Watched PR title which ... (bradenmacdonald) - watched/watch-branch (7777777)')
