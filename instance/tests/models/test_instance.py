@@ -452,25 +452,6 @@ class OpenEdXInstanceTestCase(TestCase):
         self.assertNotIn('EDXAPP_MONGO_PORT', instance.vars_str)
         self.assertIn('EDXAPP_MONGO_DB_NAME: dbname', instance.vars_str)
 
-    def test_ephemeral_databases(self):
-        """
-        The ephemeral_databases attribute should be True if no external
-        database has been set
-        """
-        instance = OpenEdXInstanceFactory(
-            database_url='mysql://db.opencraft.com',
-            mongo_url='mongo://mongo.opencraft.com',
-        )
-        self.assertFalse(instance.ephemeral_databases)
-        instance.ephemeral_databases = False  # No exception
-        instance.ephemeral_databases = True
-        self.assertFalse(instance.database_url)
-        self.assertFalse(instance.mongo_url)
-        with self.assertRaises(ValueError):
-            instance.ephemeral_databases = False
-        with self.assertRaises(TypeError):
-            instance.ephemeral_databases = 42
-
     @patch_os_server
     @patch('instance.models.server.openstack.create_server')
     @patch('instance.models.server.OpenStackServer.update_status')

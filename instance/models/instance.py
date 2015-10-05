@@ -550,28 +550,6 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         return settings.DEFAULT_FORK
 
     @property
-    def ephemeral_databases(self):
-        """
-        Will this instance's databases disappear when the instance is
-        reprovisioned?
-        """
-        return not self.database_url and not self.mongo_url
-
-    @ephemeral_databases.setter
-    def ephemeral_databases(self, value):
-        """
-        Set this to True to unset any external database settings
-        """
-        if value is True:
-            self.database_url = ''
-            self.mongo_url = ''
-        elif value is False:
-            if self.ephemeral_databases is not False:
-                raise ValueError('Set database_url or mongo_url')
-        else:
-            raise TypeError('Expected bool')
-
-    @property
     def ansible_s3_settings(self):
         """
         Ansible settings for the S3 bucket
@@ -648,8 +626,6 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
             self.database_url = pr.database_url
         if pr.mongo_url:
             self.mongo_url = pr.mongo_url
-        if pr.ephemeral_databases is not None:
-            self.ephemeral_databases = pr.ephemeral_databases
         self.ansible_extra_settings = pr.extra_settings
 
     @log_exception
