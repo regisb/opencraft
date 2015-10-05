@@ -149,12 +149,6 @@ class PR:
     """
     Representation of a GitHub Pull Request
     """
-    SETTINGS = {
-        'DATABASE_URL': 'DATABASE_URL',
-        'MONGO_URL': 'MONGO_URL',
-        'EPHEMERAL_DATABASES': 'EPHEMERAL_DATABASES',
-    }
-
     def __init__(self, number, fork_name, branch_name, title, username, body=''):
         self.number = number
         self.fork_name = fork_name
@@ -175,21 +169,14 @@ class PR:
         """
         An optional database url, from the DATABASE_URL setting in the PR body
         """
-        return self.settings.get(self.SETTINGS['DATABASE_URL'])
+        return self.settings.get('DATABASE_URL')
 
     @property
     def mongo_url(self):
         """
         An optional mongo url, from the MONGO_URL setting in the PR body
         """
-        return self.settings.get(self.SETTINGS['MONGO_URL'])
-
-    @property
-    def ephemeral_databases(self):
-        """
-        The EPHEMERAL_DATABASES setting given in the PR body
-        """
-        return self.settings.get(self.SETTINGS['EPHEMERAL_DATABASES'])
+        return self.settings.get('MONGO_URL')
 
     @property
     def extra_settings(self):
@@ -199,4 +186,4 @@ class PR:
         if not self.settings:
             return ''
         return yaml.dump({key: value for key, value in self.settings.items()
-                          if key not in self.SETTINGS.values()})
+                          if key not in ('DATABASE_URL', 'MONGO_URL')})
