@@ -22,7 +22,7 @@ Utils module - Tests
 
 # Imports #####################################################################
 
-from tempfile import NamedTemporaryFile
+import subprocess
 
 from instance.tests.base import TestCase
 from instance.utils import read_files
@@ -38,22 +38,17 @@ class UtilsTestCase(TestCase):
         """
         Ensure that the lines read are in the order they were written
         """
-        with NamedTemporaryFile() as wfile1, NamedTemporaryFile() as wfile2:
-            rfile1 = open(wfile1.name, "rb")
-            rfile2 = open(wfile2.name, "rb")
-            lines = read_files(rfile1, rfile2)
+        process = subprocess.Popen([
+            "echo line1; echo line1 >&2; echo line2; echo line2 >&2; echo line3"
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        lines = read_files(process.stdout, process.stderr)
 
-            wfile1.write(b"FILE1,LINE1\n")
-            wfile2.write(b"FILE2,LINE1\n")
-            wfile1.write(b"FILE1,LINE2\n")
-            wfile2.write(b"FILE2,LINE2\n")
-            wfile2.write(b"FILE2,LINE3\n")
-
-            wfile1.flush()
-            wfile2.flush()
-
-            self.assertEqual(next(lines), (rfile1, b"FILE1,LINE1\n"))
-            self.assertEqual(next(lines), (rfile2, b"FILE2,LINE1\n"))
-            self.assertEqual(next(lines), (rfile1, b"FILE1,LINE2\n"))
-            self.assertEqual(next(lines), (rfile2, b"FILE2,LINE2\n"))
-            self.assertEqual(next(lines), (rfile2, b"FILE2,LINE3\n"))
+        expected = [
+            (process.stdout, b"line1\n"),
+            (process.stderr, b"line1\n"),
+            (process.stdout, b"line2\n"),
+            (process.stderr, b"line2\n"),
+            (process.stdout, b"line3\n"),
+        ]
+        self.assertEqual(sorted(lines, key=lambda l: l[1]),
+                         sorted(expected, key=lambda l: l[1]))
