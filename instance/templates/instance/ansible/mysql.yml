@@ -1,0 +1,5 @@
+EDXAPP_MYSQL_USER: '{{ mysql.username }}'
+EDXAPP_MYSQL_PASSWORD: '{{ mysql.password }}'
+EDXAPP_MYSQL_HOST: '{{ mysql.hostname }}'
+EDXAPP_MYSQL_PORT: {{ mysql.port | default:"3306" }}
+EDXAPP_MYSQL_DB_NAME: '{{ mysql.path | slice:"1:" }}'

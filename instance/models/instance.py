@@ -26,6 +26,7 @@ import logging
 import os
 
 from functools import partial
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.validators import RegexValidator
@@ -478,10 +479,15 @@ class AnsibleInstanceMixin(models.Model):
         self.logger.debug('Vars.yml:\n%s', vars_str)
         return vars_str
 
-    def run_playbook(self):
+    def run_playbook(self, playbook_filename=None, inventory_str=None):
         """
         Run a playbook against the instance active servers
         """
+        if playbook_filename is None:
+            playbook_filename = self.ansible_playbook_filename
+        if inventory_str is None:
+            inventory_str = self.inventory_str
+
         with open_repository(self.ansible_source_repo_url,
                              ref=self.configuration_version) as configuration_repo:
             playbook_path = os.path.join(configuration_repo.working_dir, 'playbooks')
@@ -492,10 +498,10 @@ class AnsibleInstanceMixin(models.Model):
             log_lines = []
             with ansible.run_playbook(
                 requirements_path,
-                self.inventory_str,
+                inventory_str,
                 self.vars_str,
                 playbook_path,
-                self.ansible_playbook_filename,
+                playbook_filename,
                 username=settings.OPENSTACK_SANDBOX_SSH_USERNAME,
             ) as processus:
                 for line in processus.stdout:
@@ -505,6 +511,12 @@ class AnsibleInstanceMixin(models.Model):
 
         self.logger.info('Playbook run completed')
         return log_lines
+
+    def run_role(self, role, host):
+        """
+        Run a single ansible role on the given host
+        """
+        self.run_playbook('run_role.yml', '{0} role={1}'.format(host, role))
 
 
 # Open edX ####################################################################
@@ -524,7 +536,11 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
 
     ephemeral_databases = models.BooleanField()
 
-    ANSIBLE_SETTINGS = AnsibleInstanceMixin.ANSIBLE_SETTINGS + ['ansible_s3_settings']
+    ANSIBLE_SETTINGS = AnsibleInstanceMixin.ANSIBLE_SETTINGS + [
+        'ansible_s3_settings',
+        'ansible_mysql_settings',
+        'ansible_mongo_settings',
+    ]
 
     class Meta:
         verbose_name = 'Open edX Instance'
@@ -549,6 +565,28 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         return template.render({'instance': self})
 
     @property
+    def ansible_mysql_settings(self):
+        """
+        Ansible settings for the external mysql database
+        """
+        if self.ephemeral_databases or not settings.INSTANCE_MYSQL_URL:
+            return ''
+
+        template = loader.get_template('instance/ansible/mysql.yml')
+        return template.render({'mysql': self.database_url(settings.INSTANCE_MYSQL_URL)})
+
+    @property
+    def ansible_mongo_settings(self):
+        """
+        Ansible settings for the external mongo database
+        """
+        if self.ephemeral_databases or not settings.INSTANCE_MONGO_URL:
+            return ''
+
+        template = loader.get_template('instance/ansible/mongo.yml')
+        return template.render({'mongo': self.database_url(settings.INSTANCE_MONGO_URL)})
+
+    @property
     def studio_sub_domain(self):
         """
         Studio sub-domain name (eg. 'studio.master')
@@ -568,6 +606,19 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         Studio URL
         """
         return u'{0.protocol}://{0.studio_domain}/'.format(self)
+
+    @property
+    def database_name(self):
+        """
+        The database name used for external databases
+        """
+        return self.domain.replace('.', '_')
+
+    def database_url(self, base):
+        """
+        Return the parsed url for this instance's database
+        """
+        return urlparse(os.path.join(base, self.database_name))
 
     @staticmethod
     def on_pre_save(sender, instance, **kwargs):
@@ -611,6 +662,11 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         self.logger.info('Updating DNS: Studio at %s...', self.studio_domain)
         gandi.set_dns_record(type='CNAME', name=self.studio_sub_domain, value=self.sub_domain)
 
+        # Provisioning (external databases)
+        if not self.ephemeral_databases:
+            self.logger.info('Provisioning external databases...')
+            self.provision_external_databases()
+
         # Provisioning (ansible)
         self.logger.info('Waiting for SSH to become available on server {}...'.format(server))
         server.sleep_until_status(server.BOOTED)
@@ -624,5 +680,28 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         self.logger.info('Provisioning completed')
 
         return (server, ansible_log)
+
+    def provision_external_databases(self):
+        """
+        Provision external databases for this instance
+        """
+        self.provision_external_mysql()
+        self.provision_external_mongo()
+
+    def provision_external_mysql(self):
+        """
+        Provision external mysql database
+        """
+        if settings.INSTANCE_MYSQL_URL:
+            host = self.database_url(settings.INSTANCE_MYSQL_URL).hostname
+            self.run_role('edxlocal', host)
+
+    def provision_external_mongo(self):
+        """
+        Provision external mongo database
+        """
+        if settings.INSTANCE_MONGO_URL:
+            host = self.database_url(settings.INSTANCE_MONGO_URL).hostname
+            self.run_role('mongo', host)
 
 pre_save.connect(OpenEdXInstance.on_pre_save, sender=OpenEdXInstance)
