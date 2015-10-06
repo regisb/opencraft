@@ -522,6 +522,8 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
     s3_secret_access_key = models.CharField(max_length=50, blank=True)
     s3_bucket_name = models.CharField(max_length=50, blank=True)
 
+    ephemeral_databases = models.BooleanField()
+
     ANSIBLE_SETTINGS = AnsibleInstanceMixin.ANSIBLE_SETTINGS + ['ansible_s3_settings']
 
     class Meta:
@@ -566,6 +568,16 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         Studio URL
         """
         return u'{0.protocol}://{0.studio_domain}/'.format(self)
+
+    @staticmethod
+    def on_pre_save(sender, instance, **kwargs):
+        """
+        Set this instance's default field values to the values specified in
+        the settings
+        """
+        super().on_pre_save(sender, instance, **kwargs)
+        if instance.ephemeral_databases is None:
+            instance.ephemeral_databases = settings.INSTANCE_EPHEMERAL_DATABASES
 
     def update_from_pr(self, pr):
         """
