@@ -2,10 +2,10 @@ EDXAPP_MONGO_USER: '{{ mongo.username }}'
 EDXAPP_MONGO_PASSWORD: '{{ mongo.password }}'
 EDXAPP_MONGO_HOSTS: ['{{ mongo.hostname }}']
 EDXAPP_MONGO_PORT: {{ mongo.port | default:"27017" }}
-EDXAPP_MONGO_DB_NAME: '{{ mongo.path | slice:"1:" }}'
+EDXAPP_MONGO_DB_NAME: '{{ database }}'
 
 FORUM_MONGO_USER: '{{ mongo.username }}'
 FORUM_MONGO_PASSWORD: '{{ mongo.password }}'
 FORUM_MONGO_HOSTS: ['{{ mongo.hostname }}']
 FORUM_MONGO_PORT: {{ mongo.port | default:"27017" }}
-FORUM_MONGO_DATABASE: '{{ mongo.path | slice:"1:" }}_forum'
+FORUM_MONGO_DATABASE: '{{ database }}_forum'

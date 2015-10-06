@@ -26,7 +26,6 @@ import logging
 import os
 
 from functools import partial
-from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.validators import RegexValidator
@@ -35,6 +34,8 @@ from django.db.models.signals import pre_save
 from django.template import loader
 from django.utils import timezone
 from django_extensions.db.models import TimeStampedModel
+
+import MySQLdb as mysql
 
 from instance import ansible, github
 from instance.gandi import GandiAPI
@@ -479,15 +480,10 @@ class AnsibleInstanceMixin(models.Model):
         self.logger.debug('Vars.yml:\n%s', vars_str)
         return vars_str
 
-    def run_playbook(self, playbook_filename=None, inventory_str=None):
+    def run_playbook(self):
         """
         Run a playbook against the instance active servers
         """
-        if playbook_filename is None:
-            playbook_filename = self.ansible_playbook_filename
-        if inventory_str is None:
-            inventory_str = self.inventory_str
-
         with open_repository(self.ansible_source_repo_url,
                              ref=self.configuration_version) as configuration_repo:
             playbook_path = os.path.join(configuration_repo.working_dir, 'playbooks')
@@ -498,10 +494,10 @@ class AnsibleInstanceMixin(models.Model):
             log_lines = []
             with ansible.run_playbook(
                 requirements_path,
-                inventory_str,
+                self.inventory_str,
                 self.vars_str,
                 playbook_path,
-                playbook_filename,
+                self.ansible_playbook_filename,
                 username=settings.OPENSTACK_SANDBOX_SSH_USERNAME,
             ) as processus:
                 for line in processus.stdout:
@@ -511,12 +507,6 @@ class AnsibleInstanceMixin(models.Model):
 
         self.logger.info('Playbook run completed')
         return log_lines
-
-    def run_role(self, role, host):
-        """
-        Run a single ansible role on the given host
-        """
-        self.run_playbook('run_role.yml', '{0} role={1}'.format(host, role))
 
 
 # Open edX ####################################################################
@@ -569,22 +559,24 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         """
         Ansible settings for the external mysql database
         """
-        if self.ephemeral_databases or not settings.INSTANCE_MYSQL_URL:
+        if self.ephemeral_databases or not settings.INSTANCE_MYSQL_URL_OBJ:
             return ''
 
         template = loader.get_template('instance/ansible/mysql.yml')
-        return template.render({'mysql': self.database_url(settings.INSTANCE_MYSQL_URL)})
+        return template.render({'mysql': settings.INSTANCE_MYSQL_URL_OBJ,
+                                'database': self.database_name})
 
     @property
     def ansible_mongo_settings(self):
         """
         Ansible settings for the external mongo database
         """
-        if self.ephemeral_databases or not settings.INSTANCE_MONGO_URL:
+        if self.ephemeral_databases or not settings.INSTANCE_MONGO_URL_OBJ:
             return ''
 
         template = loader.get_template('instance/ansible/mongo.yml')
-        return template.render({'mongo': self.database_url(settings.INSTANCE_MONGO_URL)})
+        return template.render({'mongo': settings.INSTANCE_MONGO_URL_OBJ,
+                                'database': self.database_name})
 
     @property
     def studio_sub_domain(self):
@@ -613,12 +605,6 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         The database name used for external databases
         """
         return self.domain.replace('.', '_')
-
-    def database_url(self, base):
-        """
-        Return the parsed url for this instance's database
-        """
-        return urlparse(os.path.join(base, self.database_name))
 
     @staticmethod
     def on_pre_save(sender, instance, **kwargs):
@@ -685,23 +671,14 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         """
         Provision external databases for this instance
         """
-        self.provision_external_mysql()
-        self.provision_external_mongo()
-
-    def provision_external_mysql(self):
-        """
-        Provision external mysql database
-        """
-        if settings.INSTANCE_MYSQL_URL:
-            host = self.database_url(settings.INSTANCE_MYSQL_URL).hostname
-            self.run_role('edxlocal', host)
-
-    def provision_external_mongo(self):
-        """
-        Provision external mongo database
-        """
-        if settings.INSTANCE_MONGO_URL:
-            host = self.database_url(settings.INSTANCE_MONGO_URL).hostname
-            self.run_role('mongo', host)
+        if settings.INSTANCE_MYSQL_URL_OBJ:
+            connection = mysql.connect(
+                host=settings.INSTANCE_MYSQL_URL_OBJ.hostname,
+                user=settings.INSTANCE_MYSQL_URL_OBJ.username,
+                passwd=settings.INSTANCE_MYSQL_URL_OBJ.password,
+                port=settings.INSTANCE_MYSQL_URL_OBJ.port or 3306,
+            )
+            cursor = connection.cursor()
+            cursor.execute('CREATE DATABASE IF NOT EXISTS %s', [self.database_name])
 
 pre_save.connect(OpenEdXInstance.on_pre_save, sender=OpenEdXInstance)
