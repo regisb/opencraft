@@ -675,10 +675,11 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
             connection = mysql.connect(
                 host=settings.INSTANCE_MYSQL_URL_OBJ.hostname,
                 user=settings.INSTANCE_MYSQL_URL_OBJ.username,
-                passwd=settings.INSTANCE_MYSQL_URL_OBJ.password,
+                passwd=settings.INSTANCE_MYSQL_URL_OBJ.password or '',
                 port=settings.INSTANCE_MYSQL_URL_OBJ.port or 3306,
             )
             cursor = connection.cursor()
-            cursor.execute('CREATE DATABASE IF NOT EXISTS %s', [self.database_name])
+            database_name = connection.escape_string(self.database_name).decode()
+            cursor.execute('CREATE DATABASE IF NOT EXISTS {0}'.format(database_name))
 
 pre_save.connect(OpenEdXInstance.on_pre_save, sender=OpenEdXInstance)

@@ -23,6 +23,7 @@ OpenEdXInstance model - Tests
 # Imports #####################################################################
 
 import re
+import subprocess
 from mock import call, patch
 from urllib.parse import urlparse
 
@@ -340,8 +341,6 @@ class AnsibleInstanceTestCase(TestCase):
         ), mock_run_playbook.mock_calls)
 
 
-@override_settings(INSTANCE_MYSQL_URL_OBJ=urlparse('mysql://user:pass@mysql.opencraft.com'),
-                   INSTANCE_MONGO_URL_OBJ=urlparse('mongo://user:pass@mongo.opencraft.com'))
 class OpenEdXInstanceTestCase(TestCase):
     """
     Test cases for OpenEdXInstanceMixin models
@@ -402,6 +401,7 @@ class OpenEdXInstanceTestCase(TestCase):
         self.assertIn('XQUEUE_AWS_SECRET_ACCESS_KEY: test-s3-secret-access-key', instance.vars_str)
         self.assertIn('XQUEUE_S3_BUCKET: test-s3-bucket-name', instance.vars_str)
 
+    @override_settings(INSTANCE_MYSQL_URL_OBJ=urlparse('mysql://user:pass@mysql.opencraft.com'))
     def test_vars_str_mysql(self):
         """
         Add mysql ansible vars if INSTANCE_MYSQL_URL is set
@@ -421,6 +421,7 @@ class OpenEdXInstanceTestCase(TestCase):
         instance = OpenEdXInstanceFactory(ephemeral_databases=False)
         self.check_mysql_vars_not_set(instance)
 
+    @override_settings(INSTANCE_MYSQL_URL_OBJ=urlparse('mysql://user:pass@mysql.opencraft.com'))
     def test_vars_str_mysql_ephemeral(self):
         """
         Don't add mysql ansible vars for ephemeral databases
@@ -439,6 +440,7 @@ class OpenEdXInstanceTestCase(TestCase):
                     'EDXAPP_MYSQL_DB_NAME'):
             self.assertNotIn(var, instance.vars_str)
 
+    @override_settings(INSTANCE_MONGO_URL_OBJ=urlparse('mongo://user:pass@mongo.opencraft.com'))
     def test_vars_str_mongo(self):
         """
         Add mongo ansible vars if INSTANCE_MONGO_URL is set
@@ -463,6 +465,7 @@ class OpenEdXInstanceTestCase(TestCase):
         instance = OpenEdXInstanceFactory(ephemeral_databases=False)
         self.check_mongo_vars_not_set(instance)
 
+    @override_settings(INSTANCE_MONGO_URL_OBJ=urlparse('mongo://user:pass@mongo.opencraft.com'))
     def test_vars_str_mongo_ephemeral(self):
         """
         Don't add mongo ansible vars if INSTANCE_MONGO_URL is not set
@@ -564,25 +567,22 @@ class OpenEdXInstanceTestCase(TestCase):
         instance.provision()
         self.assertEqual(mock_provision_databases.call_count, 1)
 
-    @patch('instance.models.instance.mysql.connect')
-    def test_provision_external_mysql(self, mock_mysql_connect):
+    def test_provision_external_mysql(self):
         """
         Provision external mysql database
         """
         instance = OpenEdXInstanceFactory()
         instance.provision_external_databases()
-        self.assertEqual(mock_mysql_connect.mock_calls, [
-            call(host='mysql.opencraft.com', user='user', passwd='pass', port=3306),
-            call().cursor(),
-            call().cursor().execute('CREATE DATABASE IF NOT EXISTS %s', [instance.database_name]),
-        ])
+        databases = subprocess.check_output("mysql -u root -e 'show databases'", shell=True).decode()
+        self.assertIn(instance.database_name, databases)
+        subprocess.check_output('mysqladmin -u root -f drop {0}'.format(instance.database_name), shell=True)
 
     @override_settings(INSTANCE_MYSQL_URL_OBJ=None)
-    @patch('instance.models.instance.mysql.connect')
-    def test_provision_external_mysql_no_url(self, mock_mysql_connect):
+    def test_provision_external_mysql_no_url(self):
         """
         Don't provision an external mysql database if INSTANCE_MYSQL_URL is not set
         """
         instance = OpenEdXInstanceFactory()
         instance.provision_external_databases()
-        self.assertEqual(mock_mysql_connect.call_count, 0)
+        databases = subprocess.check_output("mysql -u root -e 'show databases'", shell=True).decode()
+        self.assertNotIn(instance.database_name, databases)
