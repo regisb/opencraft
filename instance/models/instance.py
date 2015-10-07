@@ -622,6 +622,8 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         """
         super().update_from_pr(pr)
         self.ansible_extra_settings = pr.extra_settings
+        if pr.ephemeral_databases is not None:
+            self.ephemeral_databases = pr.ephemeral_databases
 
     @log_exception
     def provision(self):

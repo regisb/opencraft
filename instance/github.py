@@ -87,6 +87,18 @@ def get_settings_from_pr_body(pr_body):
         return ''
 
 
+def get_ephemeral_databases_from_pr_body(pr_body):
+    """
+    Return True if the PR body specified that the sandbox should use ephemeral
+    databases, False if it specifies persistent databases, or None otherwise
+    """
+    if re.search(r'..Sandbox:?...*\(ephemeral databases?\)', pr_body):
+        return True
+    if re.search(r'..Sandbox:?...*\(persistent databases?\)', pr_body):
+        return False
+    return None
+
+
 def get_pr_by_number(fork_name, pr_number):
     """
     Returns a PR object based on the reponse
@@ -177,3 +189,10 @@ class PR:
         Extra settings contained in the PR body
         """
         return get_settings_from_pr_body(self.body)
+
+    @property
+    def ephemeral_databases(self):
+        """
+        Does this PR request ephemeral databases?
+        """
+        return get_ephemeral_databases_from_pr_body(self.body)

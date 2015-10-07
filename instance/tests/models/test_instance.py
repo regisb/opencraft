@@ -358,6 +358,7 @@ class OpenEdXInstanceTestCase(TestCase):
         self.assertEqual(instance.commit_id, '9' * 40)
         self.assertEqual(instance.name, 'edx/master (9999999)')
 
+    @override_settings(INSTANCE_EPHEMERAL_DATABASES=True)
     @patch('instance.models.instance.github.get_commit_id_from_ref')
     def test_create_from_pr(self, mock_get_commit_id_from_ref):
         """
@@ -371,6 +372,29 @@ class OpenEdXInstanceTestCase(TestCase):
         self.assertEqual(instance.branch_name, pr.branch_name)
         self.assertRegex(instance.name, r'^PR')
         self.assertEqual(instance.github_pr_number, pr.number)
+        self.assertIs(instance.ephemeral_databases, True)
+
+    @override_settings(INSTANCE_EPHEMERAL_DATABASES=False)
+    @patch('instance.models.instance.github.get_commit_id_from_ref')
+    def test_create_from_pr_ephemeral_databases(self, mock_get_commit_id_from_ref):
+        """
+        Instances should use ephemeral databases if requested in the PR
+        """
+        mock_get_commit_id_from_ref.return_value = '9' * 40
+        pr = PRFactory(body='**Sandbox** (ephemeral databases)')
+        instance, _ = OpenEdXInstance.objects.update_or_create_from_pr(pr)
+        self.assertIs(instance.ephemeral_databases, True)
+
+    @override_settings(INSTANCE_EPHEMERAL_DATABASES=True)
+    @patch('instance.models.instance.github.get_commit_id_from_ref')
+    def test_create_from_pr_persistent_databases(self, mock_get_commit_id_from_ref):
+        """
+        Instances should use persistent databases if requested in the PR
+        """
+        mock_get_commit_id_from_ref.return_value = '9' * 40
+        pr = PRFactory(body='**Sandbox** (persistent databases)')
+        instance, _ = OpenEdXInstance.objects.update_or_create_from_pr(pr)
+        self.assertIs(instance.ephemeral_databases, False)
 
     def test_get_by_fork_name(self):
         """

@@ -73,6 +73,22 @@ class GitHubTestCase(TestCase):
         pr_body = "Description\r\nover\r\nlines\r\n- - -\r\n**Settings**\r\nMALFORMED"
         self.assertEqual(github.get_settings_from_pr_body(pr_body), '')
 
+    def test_get_ephemeral_databases_from_pr_body(self):
+        """
+        Determine whether the sandbox should use ephemeral databases
+        """
+        for pr_body in ('**JIRA Ticket:** https://openedx.atlassian.net/browse/YONK-83\r\n'
+                        '**Sandbox:** [LMS](http://pr9848.sandbox.opencraft.com/), '
+                        '[Studio](http://studio.pr9848.sandbox.opencraft.com/) (ephemeral database)\r\n',
+                        '**Sandbox**: http://pr9903.sandbox.opencraft.com/ (ephemeral databases)\r\n\r\n'):
+            self.assertTrue(github.get_ephemeral_databases_from_pr_body(pr_body))
+        for pr_body in ('**Sandbox:** [LMS](http://sandbox.example.com)',
+                        'Description\r\nover\r\nlines\r\n- - -\r\n**Settings**\r\nWATCH: yes\r\n'):
+            self.assertIsNone(github.get_ephemeral_databases_from_pr_body(pr_body))
+        for pr_body in ('__Sandbox:__ [LMS](http://sandbox.example.com) (persistent database)',
+                        '**Sandbox** http://sandbox.example.com/ (persistent databases)\r\n'):
+            self.assertFalse(github.get_ephemeral_databases_from_pr_body(pr_body))
+
     @responses.activate
     def test_get_pr_by_number(self):
         """
@@ -97,6 +113,7 @@ class GitHubTestCase(TestCase):
         self.assertEqual(pr.branch_name, 'smarnach/hide-discussion-tab')
         self.assertEqual(pr.extra_settings, 'EDXAPP_FEATURES:\r\n  ALLOW: true\r\n')
         self.assertEqual(pr.username, 'smarnach')
+        self.assertFalse(pr.ephemeral_databases)
 
     @responses.activate
     def test_get_pr_by_number_404(self):
