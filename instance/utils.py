@@ -27,6 +27,12 @@ import requests
 import socket
 
 from mock import Mock
+from random import SystemRandom
+
+
+# Constants ###################################################################
+
+random = SystemRandom()
 
 
 # Functions ###################################################################
@@ -70,3 +76,10 @@ def get_requests_retry(total=10, connect=10, read=10, redirect=10, backoff_facto
         redirect=redirect,
         backoff_factor=backoff_factor
     )
+
+
+def random_string(alphabet, length):
+    """
+    Returns a random string of the given length
+    """
+    return ''.join(random.choice(alphabet) for i in range(length))

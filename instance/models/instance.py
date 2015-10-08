@@ -24,6 +24,7 @@ Instance app models - Instance
 
 import logging
 import os
+import string
 
 from functools import partial
 
@@ -36,6 +37,7 @@ from django.utils import timezone
 from django_extensions.db.models import TimeStampedModel
 
 import MySQLdb as mysql
+import pymongo
 
 from instance import ansible, github
 from instance.gandi import GandiAPI
@@ -43,6 +45,7 @@ from instance.github import fork_name2tuple, get_username_list_from_team
 from instance.logging import log_exception
 from instance.logger_adapter import InstanceLoggerAdapter
 from instance.repo import open_repository
+from instance.utils import random_string
 
 from instance.models.utils import ValidateModelMixin
 
@@ -525,6 +528,8 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
     s3_bucket_name = models.CharField(max_length=50, blank=True)
 
     ephemeral_databases = models.BooleanField()
+    database_user = models.CharField(max_length=16, blank=True)  # 16 chars is mysql maximum
+    database_pass = models.CharField(max_length=32, blank=True)
 
     ANSIBLE_SETTINGS = AnsibleInstanceMixin.ANSIBLE_SETTINGS + [
         'ansible_s3_settings',
@@ -563,7 +568,10 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
             return ''
 
         template = loader.get_template('instance/ansible/mysql.yml')
-        return template.render({'mysql': settings.INSTANCE_MYSQL_URL_OBJ,
+        return template.render({'user': self.database_user,
+                                'pass': self.database_pass,
+                                'host': settings.INSTANCE_MYSQL_URL_OBJ.hostname,
+                                'port': settings.INSTANCE_MYSQL_URL_OBJ.port or 3306,
                                 'database': self.database_name})
 
     @property
@@ -575,8 +583,12 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
             return ''
 
         template = loader.get_template('instance/ansible/mongo.yml')
-        return template.render({'mongo': settings.INSTANCE_MONGO_URL_OBJ,
-                                'database': self.database_name})
+        return template.render({'user': self.database_user,
+                                'pass': self.database_pass,
+                                'host': settings.INSTANCE_MONGO_URL_OBJ.hostname,
+                                'port': settings.INSTANCE_MONGO_URL_OBJ.port or 27017,
+                                'database': self.database_name,
+                                'forum_database': self.forum_database_name})
 
     @property
     def studio_sub_domain(self):
@@ -606,15 +618,31 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         """
         return self.domain.replace('.', '_')
 
+    @property
+    def forum_database_name(self):
+        """
+        The name of the external database used for forums
+        """
+        return '{0}_forum'.format(self.database_name)
+
     @staticmethod
     def on_pre_save(sender, instance, **kwargs):
         """
-        Set this instance's default field values to the values specified in
-        the settings
+        Set this instance's default field values
         """
         super().on_pre_save(sender, instance, **kwargs)
-        if instance.ephemeral_databases is None:
-            instance.ephemeral_databases = settings.INSTANCE_EPHEMERAL_DATABASES
+
+        self = instance
+
+        if self.ephemeral_databases is None:
+            self.ephemeral_databases = settings.INSTANCE_EPHEMERAL_DATABASES
+        if not self.database_user:
+            self.database_user = random_string(string.ascii_lowercase,
+                                               length=16)
+        if not self.database_pass:
+            self.database_pass = random_string(string.ascii_letters +
+                                               string.digits,
+                                               length=32)
 
     def update_from_pr(self, pr):
         """
@@ -673,6 +701,13 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
         """
         Provision external databases for this instance
         """
+        self.provision_external_mysql()
+        self.provision_external_mongo()
+
+    def provision_external_mysql(self):
+        """
+        Provision external mysql database for this instance
+        """
         if settings.INSTANCE_MYSQL_URL_OBJ:
             connection = mysql.connect(
                 host=settings.INSTANCE_MYSQL_URL_OBJ.hostname,
@@ -681,7 +716,22 @@ class OpenEdXInstance(AnsibleInstanceMixin, GitHubInstanceMixin, Instance):
                 port=settings.INSTANCE_MYSQL_URL_OBJ.port or 3306,
             )
             cursor = connection.cursor()
+
+            # We can't use the database name in a parameterized query, the
+            # driver doesn't escape it properly. Se we escape it here instead
             database_name = connection.escape_string(self.database_name).decode()
+
             cursor.execute('CREATE DATABASE IF NOT EXISTS {0}'.format(database_name))
+            cursor.execute('GRANT ALL ON {0}.* TO %s IDENTIFIED BY %s'.format(database_name),
+                           (self.database_user, self.database_pass))
+
+    def provision_external_mongo(self):
+        """
+        Provision external mongo databases for this instance
+        """
+        if settings.INSTANCE_MONGO_URL:
+            mongo = pymongo.MongoClient(settings.INSTANCE_MONGO_URL)
+            for database in (self.database_name, self.forum_database_name):
+                mongo[database].add_user(self.database_user, self.database_pass)
 
 pre_save.connect(OpenEdXInstance.on_pre_save, sender=OpenEdXInstance)

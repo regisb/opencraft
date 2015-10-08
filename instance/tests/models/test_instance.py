@@ -27,7 +27,10 @@ import subprocess
 from mock import call, patch
 from urllib.parse import urlparse
 
+from django.conf import settings
 from django.test import override_settings
+
+import pymongo
 
 from instance.models.server import OpenStackServer
 from instance.models.instance import InconsistentInstanceState, OpenEdXInstance
@@ -341,10 +344,12 @@ class AnsibleInstanceTestCase(TestCase):
         ), mock_run_playbook.mock_calls)
 
 
+#pylint: disable=too-many-public-methods
 class OpenEdXInstanceTestCase(TestCase):
     """
     Test cases for OpenEdXInstanceMixin models
     """
+    @override_settings(INSTANCE_EPHEMERAL_DATABASES=False)
     @patch('instance.models.instance.github.get_commit_id_from_ref')
     def test_create_defaults(self, mock_get_commit_id_from_ref):
         """
@@ -357,6 +362,8 @@ class OpenEdXInstanceTestCase(TestCase):
         self.assertEqual(instance.github_repository_name, 'edx-platform')
         self.assertEqual(instance.commit_id, '9' * 40)
         self.assertEqual(instance.name, 'edx/master (9999999)')
+        self.assertTrue(instance.database_user)
+        self.assertTrue(instance.database_pass)
 
     @override_settings(INSTANCE_EPHEMERAL_DATABASES=True)
     @patch('instance.models.instance.github.get_commit_id_from_ref')
@@ -431,8 +438,8 @@ class OpenEdXInstanceTestCase(TestCase):
         Add mysql ansible vars if INSTANCE_MYSQL_URL is set
         """
         instance = OpenEdXInstanceFactory(ephemeral_databases=False)
-        self.assertIn('EDXAPP_MYSQL_USER: user', instance.vars_str)
-        self.assertIn('EDXAPP_MYSQL_PASSWORD: pass', instance.vars_str)
+        self.assertIn('EDXAPP_MYSQL_USER: {0}'.format(instance.database_user), instance.vars_str)
+        self.assertIn('EDXAPP_MYSQL_PASSWORD: {0}'.format(instance.database_pass), instance.vars_str)
         self.assertIn('EDXAPP_MYSQL_HOST: mysql.opencraft.com', instance.vars_str)
         self.assertIn('EDXAPP_MYSQL_PORT: 3306', instance.vars_str)
         self.assertIn('EDXAPP_MYSQL_DB_NAME: {0}'.format(instance.database_name), instance.vars_str)
@@ -464,22 +471,22 @@ class OpenEdXInstanceTestCase(TestCase):
                     'EDXAPP_MYSQL_DB_NAME'):
             self.assertNotIn(var, instance.vars_str)
 
-    @override_settings(INSTANCE_MONGO_URL_OBJ=urlparse('mongo://user:pass@mongo.opencraft.com'))
+    @override_settings(INSTANCE_MONGO_URL_OBJ=urlparse('mongodb://user:pass@mongo.opencraft.com'))
     def test_vars_str_mongo(self):
         """
         Add mongo ansible vars if INSTANCE_MONGO_URL is set
         """
         instance = OpenEdXInstanceFactory(ephemeral_databases=False)
-        self.assertIn('EDXAPP_MONGO_USER: user', instance.vars_str)
-        self.assertIn('EDXAPP_MONGO_PASSWORD: pass', instance.vars_str)
+        self.assertIn('EDXAPP_MONGO_USER: {0}'.format(instance.database_user), instance.vars_str)
+        self.assertIn('EDXAPP_MONGO_PASSWORD: {0}'.format(instance.database_pass), instance.vars_str)
         self.assertIn('EDXAPP_MONGO_HOSTS: [mongo.opencraft.com]', instance.vars_str)
         self.assertIn('EDXAPP_MONGO_PORT: 27017', instance.vars_str)
         self.assertIn('EDXAPP_MONGO_DB_NAME: {0}'.format(instance.database_name), instance.vars_str)
-        self.assertIn('FORUM_MONGO_USER: user', instance.vars_str)
-        self.assertIn('FORUM_MONGO_PASSWORD: pass', instance.vars_str)
+        self.assertIn('FORUM_MONGO_USER: {0}'.format(instance.database_user), instance.vars_str)
+        self.assertIn('FORUM_MONGO_PASSWORD: {0}'.format(instance.database_pass), instance.vars_str)
         self.assertIn('FORUM_MONGO_HOSTS: [mongo.opencraft.com]', instance.vars_str)
         self.assertIn('FORUM_MONGO_PORT: 27017', instance.vars_str)
-        self.assertIn('FORUM_MONGO_DATABASE: {0}_forum'.format(instance.database_name), instance.vars_str)
+        self.assertIn('FORUM_MONGO_DATABASE: {0}'.format(instance.forum_database_name), instance.vars_str)
 
     @override_settings(INSTANCE_MONGO_URL_OBJ=None)
     def test_vars_str_mongo_not_set(self):
@@ -489,7 +496,7 @@ class OpenEdXInstanceTestCase(TestCase):
         instance = OpenEdXInstanceFactory(ephemeral_databases=False)
         self.check_mongo_vars_not_set(instance)
 
-    @override_settings(INSTANCE_MONGO_URL_OBJ=urlparse('mongo://user:pass@mongo.opencraft.com'))
+    @override_settings(INSTANCE_MONGO_URL_OBJ=urlparse('mongodb://user:pass@mongo.opencraft.com'))
     def test_vars_str_mongo_ephemeral(self):
         """
         Don't add mongo ansible vars if INSTANCE_MONGO_URL is not set
@@ -529,7 +536,7 @@ class OpenEdXInstanceTestCase(TestCase):
         mock_openstack_create_server.return_value.id = 'test-run-provisioning-server'
         os_server_manager.add_fixture('test-run-provisioning-server', 'openstack/api_server_2_active.json')
 
-        instance = OpenEdXInstanceFactory(sub_domain='run.provisioning')
+        instance = OpenEdXInstanceFactory(sub_domain='run.provisioning', ephemeral_databases=True)
         instance.provision()
         self.assertEqual(mock_set_dns_record.mock_calls, [
             call(name='run.provisioning', type='A', value='192.168.100.200'),
@@ -545,8 +552,9 @@ class OpenEdXInstanceTestCase(TestCase):
     @patch('instance.models.server.OpenStackServer.reboot')
     @patch('instance.models.instance.gandi.set_dns_record')
     @patch('instance.models.instance.OpenEdXInstance.run_playbook')
-    def test_provision_no_active(self, os_server_manager, mock_run_playbook, mock_set_dns_record,
-                                 mock_server_reboot, mock_sleep, mock_update_status):
+    @patch('instance.models.instance.OpenEdXInstance.provision_external_databases')
+    def test_provision_no_active(self, os_server_manager, mock_provision_databases, mock_run_playbook,
+                                 mock_set_dns_record, mock_server_reboot, mock_sleep, mock_update_status):
         """
         Run provisioning sequence, with status jumping from 'started' to 'booted' (no 'active')
         """
@@ -591,15 +599,39 @@ class OpenEdXInstanceTestCase(TestCase):
         instance.provision()
         self.assertEqual(mock_provision_databases.call_count, 1)
 
+    @patch('instance.models.instance.OpenEdXInstance.provision_external_mysql')
+    @patch('instance.models.instance.OpenEdXInstance.provision_external_mongo')
+    def test_provision_external_databases(self, mock_provision_mysql, mock_provision_mongo):
+        """
+        Provision mysql and mongo databases
+        """
+        instance = OpenEdXInstanceFactory()
+        instance.provision_external_databases()
+        self.assertEqual(mock_provision_mysql.call_count, 1)
+        self.assertEqual(mock_provision_mongo.call_count, 1)
+
     def test_provision_external_mysql(self):
         """
         Provision external mysql database
         """
         instance = OpenEdXInstanceFactory()
-        instance.provision_external_databases()
-        databases = subprocess.check_output("mysql -u root -e 'show databases'", shell=True).decode()
+        instance.provision_external_mysql()
+
+        # Has the database been created?
+        databases = subprocess.check_output("mysql -u root -e 'SHOW DATABASES'", shell=True).decode()
         self.assertIn(instance.database_name, databases)
-        subprocess.check_output('mysqladmin -u root -f drop {0}'.format(instance.database_name), shell=True)
+
+        try:
+            # Can the database user access it?
+            #pylint: disable=missing-format-attribute
+            tables = subprocess.call('mysql -u {i.database_user} --password={i.database_pass} '
+                                     "-e 'SHOW TABLES' {i.database_name}".format(i=instance),
+                                     shell=True)
+            self.assertEqual(tables, 0)
+        finally:
+            # Remove the database and the user when done
+            subprocess.check_call("mysql -u root -e 'DROP DATABASE {0}'".format(instance.database_name), shell=True)
+            subprocess.check_call("mysql -u root -e 'DROP USER {0}'".format(instance.database_user), shell=True)
 
     @override_settings(INSTANCE_MYSQL_URL_OBJ=None)
     def test_provision_external_mysql_no_url(self):
@@ -607,6 +639,34 @@ class OpenEdXInstanceTestCase(TestCase):
         Don't provision an external mysql database if INSTANCE_MYSQL_URL is not set
         """
         instance = OpenEdXInstanceFactory()
-        instance.provision_external_databases()
-        databases = subprocess.check_output("mysql -u root -e 'show databases'", shell=True).decode()
+        instance.provision_external_mysql()
+        databases = subprocess.check_output("mysql -u root -e 'SHOW DATABASES'", shell=True).decode()
         self.assertNotIn(instance.database_name, databases)
+
+    def test_provision_external_mongo(self):
+        """
+        Provision external mongo databases
+        """
+        instance = OpenEdXInstanceFactory()
+        instance.provision_external_mongo()
+
+        mongo = pymongo.MongoClient(settings.INSTANCE_MONGO_URL)
+        databases = mongo.database_names()
+        self.assertIn(instance.database_name, databases)
+        self.assertIn(instance.forum_database_name, databases)
+
+        for database in (instance.database_name, instance.forum_database_name):
+            try:
+                self.assertTrue(mongo[database].authenticate(instance.database_user, instance.database_pass))
+            finally:
+                mongo.drop_database(database)
+
+    def test_provision_external_mongo_no_url(self):
+        """
+        Don't provision any external mongo databases if INSTANCE_MONGO_URL is not set
+        """
+        mongo = pymongo.MongoClient(settings.INSTANCE_MONGO_URL)
+        with override_settings(INSTANCE_MONGO_URL=None):
+            instance = OpenEdXInstanceFactory()
+            instance.provision_external_mongo()
+            self.assertNotIn(instance.database_name, mongo.database_names())
