@@ -196,3 +196,10 @@ class PR:
         Does this PR request ephemeral databases?
         """
         return get_ephemeral_databases_from_pr_body(self.body)
+
+    @property
+    def github_pr_url(self):
+        """
+        Construct the URL for the pull request
+        """
+        return 'https://github.com/{fork_name}/pull/{number}'.format(fork_name=self.fork_name, number=self.number)
