@@ -13,7 +13,7 @@ grep -Fq 'cd /vagrant' ~/.bashrc || echo 'cd /vagrant' >> ~/.bashrc
 # Install system packages
 export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update --quiet
-sudo apt-get install -y $(cat debian_packages.lst) postgresql mysql-server
+sudo -E apt-get install -y $(cat debian_packages.lst) postgresql mysql-server
 
 # Set up a virtualenv
 sudo pip3 install virtualenv
