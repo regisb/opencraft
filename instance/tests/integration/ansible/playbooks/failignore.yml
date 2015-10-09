@@ -1,3 +1,4 @@
+---
 - name: Fail and ignore on purpose
   hosts: all
   tasks:
