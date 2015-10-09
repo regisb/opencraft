@@ -145,7 +145,7 @@ class Instance(ValidateModelMixin, TimeStampedModel):
         return self.server_set.exclude_terminated()
 
     @property
-    def current_server(self):
+    def _current_server(self):
         """
         Current active server. Raises InconsistentInstanceState if more than
         one exists.
@@ -163,7 +163,7 @@ class Instance(ValidateModelMixin, TimeStampedModel):
         """
         Instance status
         """
-        server = self.current_server
+        server = self._current_server
         if server:
             return server.status
         return self.EMPTY
@@ -173,7 +173,7 @@ class Instance(ValidateModelMixin, TimeStampedModel):
         """
         Instance's current status progress
         """
-        server = self.current_server
+        server = self._current_server
         if server:
             return server.progress
         return self.EMPTY
@@ -232,10 +232,9 @@ class Instance(ValidateModelMixin, TimeStampedModel):
         """
         Return the list of log entry instances for the instance and its current active server
         """
-        current_server = self.active_server_set.get()
         # TODO: Filter out log entries for which the user doesn't have view rights
-        server_log_entry_set = current_server.log_entry_set.order_by('pk')\
-                                                           .iterator()
+        server_log_entry_set = self._current_server.log_entry_set.order_by('pk')\
+                                                                 .iterator()
         instance_log_entry_set = self.log_entry_set.order_by('pk')\
                                                    .iterator()
         return Instance._sort_log_entries(server_log_entry_set, instance_log_entry_set)
@@ -246,11 +245,10 @@ class Instance(ValidateModelMixin, TimeStampedModel):
         Return the list of error or critical log entry instances for the instance and its current
         active server
         """
-        current_server = self.active_server_set.get()
         # TODO: Filter out log entries for which the user doesn't have view rights
-        server_log_entry_set = current_server.log_entry_set.filter(level__in=['ERROR', 'CRITICAL'])\
-                                                           .order_by('pk')\
-                                                           .iterator()
+        server_log_entry_set = self._current_server.log_entry_set.filter(level__in=['ERROR', 'CRITICAL'])\
+                                                                 .order_by('pk')\
+                                                                 .iterator()
         instance_log_entry_set = self.log_entry_set.filter(level__in=['ERROR', 'CRITICAL'])\
                                                    .order_by('pk')\
                                                    .iterator()
