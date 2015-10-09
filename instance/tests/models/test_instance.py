@@ -360,7 +360,7 @@ class AnsibleInstanceTestCase(TestCase):
                 instance = OpenEdXInstanceFactory()
                 log, returncode = instance._run_playbook("requirements", "playbook")
 
-                self.assertListEqual(sorted(log), sorted(['HELLO', 'HI']))
+                self.assertCountEqual(log, ['HELLO', 'HI'])
                 self.assertEqual(returncode, 0)
 
 
