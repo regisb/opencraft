@@ -50,5 +50,12 @@ class UtilsTestCase(TestCase):
             (process.stderr, b"line2\n"),
             (process.stdout, b"line3\n"),
         ]
-        self.assertEqual(sorted(lines, key=lambda l: l[1]),
-                         sorted(expected, key=lambda l: l[1]))
+
+        def key(entry):
+            """
+            Helper function used together with sorting routines in order to
+            identify which attribute to sort by.
+            """
+            return entry[0].fileno()
+
+        self.assertEqual(sorted(lines, key=key), sorted(expected, key=key))
