@@ -15,12 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# Variables ###################################################################
-
-GET = wget -qO
-CDNFONTS = https://fortawesome.github.io/Font-Awesome/assets/
-
-
 # Files #######################################################################
 
 all: js_external css_external fonts_external
