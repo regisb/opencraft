@@ -94,11 +94,10 @@ def get_pr_by_number(fork_name, pr_number):
         fork_name=fork_name,
         pr_number=pr_number,
     ))
-    pr_fork_name = r_pr['head']['repo']['full_name']
     pr_branch_name = r_pr['head']['ref']
     pr = PR(
         pr_number,
-        pr_fork_name,
+        fork_name,
         pr_branch_name,
         r_pr['title'],
         r_pr['user']['login'],
